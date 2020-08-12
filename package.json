@@ -1,0 +1,14 @@
+{
+	"name": "itusin-electron",
+	"version": "0.1.0",
+	"description": "",
+	"main": "src/index.js",
+	"scripts": {
+		"start": "electron ."
+	},
+	"author": "itusin",
+	"license": "MIT",
+	"devDependencies": {
+		"electron": "^9.2.0"
+	}
+}
