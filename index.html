@@ -1,25 +1,202 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="UTF-8" />
-    <title>Hello World!</title>
-    <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'"
-    />
-    <meta
-      http-equiv="X-Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'"
-    />
-  </head>
-  <body>
-    <h1>Hello World!</h1>
-    We are using Node.js <span id="node-version"></span>, Chromium
-    <span id="chrome-version"></span>, and Electron
-    <span id="electron-version"></span>.
+    <head>
+        <meta charset="UTF-8">
+        <title>Itusin Electron</title>
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+        <style>
+            body {
+                margin: 0;
+            }
+            header {
+                width: 100vw;
+                height: 50px;
+                padding: 5px;
+                background: rgba(0,0,0,0.9);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                -webkit-app-region: drag;
+            }
+            header button {
+                -webkit-app-region: no-drag;
+            }
+            #content {
+                width: 100vw;
+                height: calc(100vh - 100px);
+                background: rgba(0,0,0,0.8);
+            }
+            footer {
+                width: 100vw;
+                height: 50px;
+                padding: 5px;
+                background: rgba(0,0,0,0.9);
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <button type="button" class="btn btn-primary">Nouvelle connexion</button>
+            <button type="button" class="btn btn-danger" onclick="quit()">Fermer</button>
+        </header>
+        <div id="content">
 
-    <!-- You can also require other files to run in this process -->
-    <script src="./build/renderer.js"></script>
-  </body>
+        </div>
+        <footer>
+
+        </footer>
+    </body>
+    <script>
+        const ipc = require("electron").ipcRenderer;
+
+        function quit() {
+			ipc.send("quit");
+		}
+    </script>
+    <script>
+        var moment = require("moment");
+        var Primus = require("./src/libs/primus.js");
+        var { EventEmitter } = require("events");
+
+        var AppService = require("./src/services/app.service");
+        var ContextService = require("./src/services/context.service");
+        var ConnectionService = require("./src/services/connection.service");
+
+        var HaapiKeysRequestModel = require("./src/models/haapi-keys-request-model");
+        var ApiIdRequestModel = require("./src/models/api-id-request-model");
+        var TokenRequestModel = require("./src/models/token-request-model");
+        var WebSocketRequestModel = require("./src/models/web-socket-request-model");
+
+        var DofusAccount = require("./src/models/dofus-account");
+
+        var dofusAccount = new DofusAccount("nirhoriel", "s4EasX9E4");
+        var emitter = new EventEmitter();
+        emitter.on("connectionToGameServer", () => connectionToGameServer());
+
+		async function connect() {
+            const settingsModels = await ContextService.getSettings();
+            AppService.appVersion = settingsModels.appVersion;
+            AppService.buildVersion = settingsModels.buildVersion;
+
+            const haapiKeyRequestModel = new HaapiKeysRequestModel(dofusAccount.username, dofusAccount.password, dofusAccount.proxy);
+            const haapiKeyResponseModel = await ConnectionService.getHaapi(haapiKeyRequestModel);
+
+            const apiIdRequestModel = new ApiIdRequestModel(dofusAccount.proxy);
+            const apiIdResponseModel = await ConnectionService.getApiId(apiIdRequestModel);
+            dofusAccount.sessionId = apiIdResponseModel.sessionId;
+
+            const tokenRequestModel = new TokenRequestModel(haapiKeyResponseModel.haapiKey, apiIdResponseModel.haapiId);
+            const tokenResponseModel = await ConnectionService.getToken(tokenRequestModel);
+            dofusAccount.token = tokenResponseModel.token;
+
+            console.log(dofusAccount);
+
+            const webSocketRequestModel = new WebSocketRequestModel(dofusAccount);
+            connectionToAuthServer(webSocketRequestModel);
+        }
+        connect();
+        
+        function connectionToAuthServer(webSocketRequestModel) {
+            const socketURL = "https://proxyconnection.touch.dofus.com/primus/?STICKER=" + dofusAccount.sessionId;
+            primus = new Primus(socketURL);
+            primus.on("open", () => openLoginServer(primus))
+            primus.on("data", payload => {
+                console.log(`[${moment().format("HH:mm:ss.SSS")}] SOCKET | \u001b[34mRCV\u001b[37m \u001b[30m| ${payload._messageType}`);
+                switch (payload._messageType) {
+                    /*
+                    case "ConnectionFailedMessage": ConnectionFailedMessage(primus, payload);
+                        break;
+                        */
+                    case "HelloConnectMessage": HelloConnectMessage(primus, payload);
+                        break;
+                        /*
+                    case "IdentificationSuccessMessage": IdentificationSuccessMessage(primus, payload);
+                        break;
+                        */
+                    case "ServersListMessage": ServersListMessage(primus, payload);
+                        break;
+                    case "SelectedServerDataMessage": SelectedServerDataMessage(primus, payload);
+                        break;
+                }
+            })
+            primus.on("reconnected", () => console.log("reconnected"))
+            primus.on("error", error => console.log(error))
+            primus.on("end", () => {})
+            primus.open();
+        }
+
+        function connectionToGameServer(webSocketRequestModel) {
+            const socketURL = "https://proxyconnection.touch.dofus.com/primus/?STICKER=" + dofusAccount.sessionId;
+            primus = new Primus(socketURL);
+            primus.on("open", () => openGameServer(primus))
+            primus.on("data", payload => {
+                console.log(`[${moment().format("HH:mm:ss.SSS")}] SOCKET | \u001b[34mRCV\u001b[37m \u001b[30m| ${payload._messageType}`);
+                switch (payload._messageType) {
+                    /*
+                    case "HelloGameMessage": HelloGameMessage(primus, payload);
+                        break;
+                    case 'TrustStatusMessage': TrustStatusMessage(primus, payload);
+                        break;
+                    case 'CharactersListMessage': CharactersListMessage(primus, payload);
+                        break;
+                    case 'CharacterSelectedSuccessMessage': CharacterSelectedSuccessMessage(primus, payload);
+                        break;
+                    case 'CurrentMapMessage': CurrentMapMessage(primus, payload);
+                        break;
+                    case 'MapComplementaryInformationsDataMessage': MapComplementaryInformationsDataMessage(primus, payload);
+                        break;
+                    case 'NpcDialogQuestionMessage': NpcDialogQuestionMessage(primus, payload);
+                        break;
+                        */
+                }
+            })
+            primus.on("reconnected", () => console.log("reconnected"))
+            primus.on("error", error => console.log(error))
+            primus.on("end", () => {})
+            primus.open();
+        }
+
+        /* Authentication */
+        function openLoginServer(primus) {
+            send(primus, "connecting", {language: "fr", server: "login", client: "android", appVersion: AppService.appVersion, buildVersion: AppService.buildVersion});
+        }
+        function HelloConnectMessage(primus, payload) {
+            send(primus, "login", {key: payload.key, salt: payload.salt, token: dofusAccount.token, username: dofusAccount.username});
+        }
+        function ServersListMessage(primus, payload) {
+            var servers = payload.servers.filter(s => s.charactersCount > 0);
+            if (!servers.length) {
+                console.log("Aucun personnage sur ce compte");
+                return;
+            }
+            var server = servers[0];
+            sendMessage(primus, "ServerSelectionMessage", {serverId: server.id});
+        }
+        function SelectedServerDataMessage(primus, payload) {
+            dofusAccount.ticket = payload.ticket;
+            dofusAccount.server = {
+                address: payload.address,
+                port: payload.port,
+                id: payload.serverId
+            }
+            send(primus, "disconnecting", "SWITCHING_TO_GAME");
+            emitter.emit("connectionToGameServer");
+        }
+
+        /* Game */
+        function openGameServer(primus) {
+            send(primus, "connecting", {language: "fr", server: dofusAccount.server, client: "android", appVersion: AppService.appVersion, buildVersion: AppService.buildVersion});
+        }
+
+        /* Primus + Dofus function */
+        function send(primus, call, data = null) {
+            primus.write({ call, data });
+            call = call === "sendMessage" ? data.type : call;
+            console.log(`[${moment().format("HH:mm:ss.SSS")}] SOCKET | \u001b[32mSND\u001b[37m \u001b[30m| ${call}`);
+        }
+        function sendMessage(primus, type, data = null) {
+            data = data !== undefined ? { type: type, data: data} : { type: type};
+            send(primus, "sendMessage", data);
+        }
+    </script>
 </html>
