@@ -1,0 +1,25 @@
+{
+	"name": "itusin-electron",
+	"version": "0.1.0",
+	"description": "",
+	"main": "main.js",
+	"scripts": {
+		"start": "electron main.js"
+	},
+	"author": "itusin",
+	"license": "MIT",
+	"devDependencies": {
+		"electron-packager": "^15.0.0",
+		"electron-reload": "^1.5.0",
+		"electron-reloader": "^1.0.1"
+	},
+	"dependencies": {
+		"axios": "^0.19.2",
+		"cloudscraper": "^4.6.0",
+		"electron": "^9.2.0",
+		"engine.io": "^3.4.2",
+		"engine.io-client": "^3.4.3",
+		"moment": "^2.27.0",
+		"request": "^2.88.2"
+	}
+}
