@@ -7,44 +7,152 @@
         <style>
             body {
                 margin: 0;
+                background: #212529;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
             }
             header {
                 width: 100vw;
-                height: 50px;
-                padding: 5px;
-                background: rgba(0,0,0,0.9);
+                height: 58px;
+                padding: 10px;
+                background: #212529;
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
                 -webkit-app-region: drag;
             }
-            header button {
+            button {
                 -webkit-app-region: no-drag;
+                background: #314CB6 !important;
+                color: #fff !important;
+                width: 120px !important;
+            }
+            .characterbtn {
+                background: rgba(0,0,0,0.2) !important;
+                margin-right: 5px;
+            }
+            .characterbtn.current {
+                background: rgba(0,0,0,0.4) !important;
+            }
+            .controlbtn {
+                background: rgba(0,0,0,0.1) !important;
             }
             #content {
-                width: 100vw;
-                height: calc(100vh - 100px);
-                background: rgba(0,0,0,0.8);
+                width: calc(100vw - 20px);
+                height: calc(100vh - 108px);
+                padding: 5px;
+                background: #4c4c4c;
+                border-radius: 3px;
+            }
+            #content-nav {
+                display: flex;
+                width: 100%;
+                margin-bottom: 5px;
+            }
+            #content-panel {
+                width: 100%;
+                height: calc(100% - 48px);
+            }
+            #content-panel-container {
+                width: 100%;
+                height: 100%;
+                border-radius: 3px;
+                display: flex;
+                flex-direction: column;
+            }
+            #content-panel-control {
+                width: 100%;
+                margin-bottom: 5px;
+            }
+            #content-panel-console {
+                width: 100%;
+                height: 100%;
+                background: rgba(255,255,255,0.5);
+                border-radius: 3px;
+                margin-bottom: -5px;
+                display: flex;
+                flex-direction: column;
+                padding: 5px;
+            }
+            .log {
+                width: 100%;
+                color: #fff;
             }
             footer {
                 width: 100vw;
                 height: 50px;
-                padding: 5px;
-                background: rgba(0,0,0,0.9);
+                padding: 10px;
+                background: #212529;
+            }
+            #connexionModal {
+                display: none;
+                position: fixed;
+                width: 300px;
+                padding: 10px;
+                background: #212529;
+                border-radius: 3px; 
+            }
+            #connexionModal form {
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+            }
+            #connexionModal label {
+                color: #fff !important;
+            }
+            #connexionModal input {
+                width: 250px !important;
+            }
+            #connexionModal button {
+                margin-top: 10px;
+            }
+            #closeConnexionModal {
+                position: absolute;
+                top: 8px;
+                right: 8px;
+                line-height: 8px;
+                color: #fff;
+                font-size: 20px;
+                cursor: pointer;
             }
         </style>
     </head>
     <body>
         <header>
-            <button type="button" class="btn btn-primary">Nouvelle connexion</button>
-            <button type="button" class="btn btn-danger" onclick="quit()">Fermer</button>
+            <button type="button" class="btn" onclick="openNewConnect()">Connexion</button>
+            <button type="button" class="btn" onclick="quit()">Fermer</button>
         </header>
         <div id="content">
-
+            <div id="content-nav"></div>
+            <div id="content-panel"></div>
         </div>
         <footer>
 
         </footer>
+        <div id="connexionModal">
+            <div id="closeConnexionModal" onclick="closeNewConnect()">x</div>
+            <form>
+                <div class="form-group">
+                    <label for="username">Nom de compte</label>
+                    <input type="text" class="form-control" id="username" placeholder="bob" value="nirhoriel">
+                </div>
+                <div class="form-group">
+                    <label for="password">Mot de passe</label>
+                    <input type="password" class="form-control" id="password" placeholder="******" value="s4EasX9E4">
+                </div>
+                <div class="form-group">
+                    <label for="proxy">Adresse proxy</label>
+                    <input type="text" class="form-control" id="proxy" placeholder="http://user:pass@host:port">
+                </div>
+                <div class="form-group">
+                    <button type="button" class="btn" onclick="loadNewAccount()">Connexion</button>
+                </div>
+            </form>
+        </div>
     </body>
     <script>
         const ipc = require("electron").ipcRenderer;
@@ -52,8 +160,59 @@
         function quit() {
 			ipc.send("quit");
 		}
-    </script>
-    <script>
+
+        function openNewConnect() {
+            document.getElementById("connexionModal").style.display = "flex";
+        }
+
+        function closeNewConnect() {
+            document.getElementById("connexionModal").style.display = "none";
+        }
+
+        function loadNewAccount() {
+            var username = document.getElementById("username").value;
+            var password = document.getElementById("password").value;
+            if (accountList.find(account => account.username === username) === undefined) {
+                var dofusAccount = new DofusAccount(username, password);
+                accountList.push(dofusAccount);
+                currentAccount = dofusAccount;
+                refreshUI();
+            }
+            closeNewConnect();
+        }
+
+        function refreshUI() {
+            refreshContentNav();
+            refreshContentPanel();
+        }
+
+        function refreshContentNav() {
+            var contentNavBtn = accountList.map(account => `<button type="button" class="btn characterbtn" id="${account.username}" onclick="focusAccount('${account.username}')">${account.username}</button>`).join('');
+            document.getElementById("content-nav").innerHTML = contentNavBtn;
+            document.getElementById(currentAccount.username).classList.add("current");
+        }
+
+        function focusAccount(username) {
+            if (currentAccount.username !== username) {
+                currentAccount = accountList.find(account => account.username === username);
+                refreshUI();
+            }
+        }
+
+        function refreshContentPanel() {
+            document.getElementById("content-panel").innerHTML = `<div id="content-panel-container">
+                <div id="content-panel-control">
+                    <button type="button" class="btn controlbtn" onclick="connect()">Connexion</button>
+                </div>
+                <div id="content-panel-console">
+                </div>
+            </div>`;
+        }
+
+        function logMessage(message) {
+            document.getElementById("content-panel-console").innerHTML += `<div class="log">[${moment().format("HH:mm:ss")}] ${message}</div>`
+        }
+
         var moment = require("moment");
         var Primus = require("./src/libs/primus.js");
         var { EventEmitter } = require("events");
@@ -69,50 +228,50 @@
 
         var DofusAccount = require("./src/models/dofus-account");
 
-        var dofusAccount = new DofusAccount("nirhoriel", "s4EasX9E4");
+        var accountList = [];
+        var currentAccount;
+
         var emitter = new EventEmitter();
         emitter.on("connectionToGameServer", () => connectionToGameServer());
 
 		async function connect() {
+            logMessage("Demande de connexion...");
+
             const settingsModels = await ContextService.getSettings();
             AppService.appVersion = settingsModels.appVersion;
             AppService.buildVersion = settingsModels.buildVersion;
 
-            const haapiKeyRequestModel = new HaapiKeysRequestModel(dofusAccount.username, dofusAccount.password, dofusAccount.proxy);
+            const haapiKeyRequestModel = new HaapiKeysRequestModel(currentAccount.username, currentAccount.password, currentAccount.proxy);
             const haapiKeyResponseModel = await ConnectionService.getHaapi(haapiKeyRequestModel);
 
-            const apiIdRequestModel = new ApiIdRequestModel(dofusAccount.proxy);
+            const apiIdRequestModel = new ApiIdRequestModel(currentAccount.proxy);
             const apiIdResponseModel = await ConnectionService.getApiId(apiIdRequestModel);
-            dofusAccount.sessionId = apiIdResponseModel.sessionId;
+            currentAccount.sessionId = apiIdResponseModel.sessionId;
 
             const tokenRequestModel = new TokenRequestModel(haapiKeyResponseModel.haapiKey, apiIdResponseModel.haapiId);
             const tokenResponseModel = await ConnectionService.getToken(tokenRequestModel);
-            dofusAccount.token = tokenResponseModel.token;
+            currentAccount.token = tokenResponseModel.token;
 
-            console.log(dofusAccount);
-
-            const webSocketRequestModel = new WebSocketRequestModel(dofusAccount);
+            const webSocketRequestModel = new WebSocketRequestModel(currentAccount);
             connectionToAuthServer(webSocketRequestModel);
         }
-        connect();
         
         function connectionToAuthServer(webSocketRequestModel) {
-            const socketURL = "https://proxyconnection.touch.dofus.com/primus/?STICKER=" + dofusAccount.sessionId;
+            const socketURL = "https://proxyconnection.touch.dofus.com/primus/?STICKER=" + currentAccount.sessionId;
             primus = new Primus(socketURL);
             primus.on("open", () => openLoginServer(primus))
             primus.on("data", payload => {
+                console.log(payload);
                 console.log(`[${moment().format("HH:mm:ss.SSS")}] SOCKET | \u001b[34mRCV\u001b[37m \u001b[30m| ${payload._messageType}`);
                 switch (payload._messageType) {
-                    /*
                     case "ConnectionFailedMessage": ConnectionFailedMessage(primus, payload);
                         break;
-                        */
                     case "HelloConnectMessage": HelloConnectMessage(primus, payload);
                         break;
-                        /*
+                    case "LoginQueueStatusMessage": LoginQueueStatusMessage(primus, payload);
+                        break;
                     case "IdentificationSuccessMessage": IdentificationSuccessMessage(primus, payload);
                         break;
-                        */
                     case "ServersListMessage": ServersListMessage(primus, payload);
                         break;
                     case "SelectedServerDataMessage": SelectedServerDataMessage(primus, payload);
@@ -126,7 +285,7 @@
         }
 
         function connectionToGameServer(webSocketRequestModel) {
-            const socketURL = "https://proxyconnection.touch.dofus.com/primus/?STICKER=" + dofusAccount.sessionId;
+            const socketURL = "https://proxyconnection.touch.dofus.com/primus/?STICKER=" + currentAccount.sessionId;
             primus = new Primus(socketURL);
             primus.on("open", () => openGameServer(primus))
             primus.on("data", payload => {
@@ -158,10 +317,23 @@
 
         /* Authentication */
         function openLoginServer(primus) {
+            console.log("openLoginServer");
             send(primus, "connecting", {language: "fr", server: "login", client: "android", appVersion: AppService.appVersion, buildVersion: AppService.buildVersion});
         }
+        function ConnectionFailedMessage(primus, payload) {
+            logMessage(`Echec de connexion ${payload.reason}`);
+        }
         function HelloConnectMessage(primus, payload) {
-            send(primus, "login", {key: payload.key, salt: payload.salt, token: dofusAccount.token, username: dofusAccount.username});
+            send(primus, "login", {key: payload.key, salt: payload.salt, token: currentAccount.token, username: currentAccount.username});
+        }
+        function LoginQueueStatusMessage(primus, payload) {
+            logMessage(`LoginQueueStatusMessage`);
+        }
+        function IdentificationSuccessMessage(primus, payload) {
+            currentAccount.accountSessionId = payload.login;
+            currentAccount.subscriptionEndDate = payload.subscriptionEndDate;
+            currentAccount.connected = true;
+            logMessage('Connexion réussie');
         }
         function ServersListMessage(primus, payload) {
             var servers = payload.servers.filter(s => s.charactersCount > 0);
@@ -173,8 +345,8 @@
             sendMessage(primus, "ServerSelectionMessage", {serverId: server.id});
         }
         function SelectedServerDataMessage(primus, payload) {
-            dofusAccount.ticket = payload.ticket;
-            dofusAccount.server = {
+            currentAccount.ticket = payload.ticket;
+            currentAccount.server = {
                 address: payload.address,
                 port: payload.port,
                 id: payload.serverId
@@ -185,7 +357,7 @@
 
         /* Game */
         function openGameServer(primus) {
-            send(primus, "connecting", {language: "fr", server: dofusAccount.server, client: "android", appVersion: AppService.appVersion, buildVersion: AppService.buildVersion});
+            send(primus, "connecting", {language: "fr", server: currentAccount.server, client: "android", appVersion: AppService.appVersion, buildVersion: AppService.buildVersion});
         }
 
         /* Primus + Dofus function */
