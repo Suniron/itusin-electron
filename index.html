@@ -29,6 +29,9 @@
                 color: #fff !important;
                 width: 120px !important;
             }
+            button:focus {
+                box-shadow: none !important;
+            }
             .characterbtn {
                 background: rgba(0,0,0,0.2) !important;
                 margin-right: 5px;
@@ -202,7 +205,7 @@
         function refreshContentPanel() {
             document.getElementById("content-panel").innerHTML = `<div id="content-panel-container">
                 <div id="content-panel-control">
-                    <button type="button" class="btn controlbtn" onclick="connect()">Connexion</button>
+                    <button type="button" class="btn characterbtn current" onclick="connect()">Connexion</button>
                 </div>
                 <div id="content-panel-console">
                 </div>
@@ -235,7 +238,7 @@
         emitter.on("connectionToGameServer", () => connectionToGameServer());
 
 		async function connect() {
-            logMessage("Demande de connexion...");
+            logMessage("Demande de connexion");
 
             const settingsModels = await ContextService.getSettings();
             AppService.appVersion = settingsModels.appVersion;
@@ -261,7 +264,6 @@
             primus = new Primus(socketURL);
             primus.on("open", () => openLoginServer(primus))
             primus.on("data", payload => {
-                console.log(payload);
                 console.log(`[${moment().format("HH:mm:ss.SSS")}] SOCKET | \u001b[34mRCV\u001b[37m \u001b[30m| ${payload._messageType}`);
                 switch (payload._messageType) {
                     case "ConnectionFailedMessage": ConnectionFailedMessage(primus, payload);
@@ -339,6 +341,7 @@
             var servers = payload.servers.filter(s => s.charactersCount > 0);
             if (!servers.length) {
                 console.log("Aucun personnage sur ce compte");
+                logMessage("Aucun personnage sur ce compte");
                 return;
             }
             var server = servers[0];
