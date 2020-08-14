@@ -5,7 +5,7 @@ var win = null;
 function createWindow () {
 	win = new BrowserWindow({
 		show: false,
-		width: 800,
+		width: 900,
 		height: 600,
 		frame: false,
 		webPreferences: {

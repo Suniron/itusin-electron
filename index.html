@@ -102,8 +102,9 @@
                 width: calc(100%/6);
                 height: 100%;
                 display: flex;
-                justify-content: center;
+                justify-content: flex-start;
                 align-items: center;
+                padding-left: 5px;
             }
             #connexionModal {
                 display: none;
@@ -138,6 +139,57 @@
                 font-size: 20px;
                 cursor: pointer;
             }
+            .level, .life, .energy, .pods, .kamas, .map {
+                user-select: none;
+            }
+            .level:before {
+                content: "";
+                background-image: url(assets/level.svg);
+                background-size: 20px 20px;
+                width: 20px;
+                height: 20px;
+                margin-right: 10px;
+            }
+            .life:before {
+                content: "";
+                background-image: url(assets/life.svg);
+                background-size: 20px 20px;
+                width: 20px;
+                height: 20px;
+                margin-right: 10px;
+            }
+            .energy:before {
+                content: "";
+                background-image: url(assets/energy.svg);
+                background-size: 20px 20px;
+                width: 20px;
+                height: 20px;
+                margin-right: 10px;
+            }
+            .pods:before {
+                content: "";
+                background-image: url(assets/pods.svg);
+                background-size: 20px 20px;
+                width: 20px;
+                height: 20px;
+                margin-right: 10px;
+            }
+            .kamas:before {
+                content: "";
+                background-image: url(assets/kamas.svg);
+                background-size: 20px 20px;
+                width: 20px;
+                height: 20px;
+                margin-right: 10px;
+            }
+            .map:before {
+                content: "";
+                background-image: url(assets/map.svg);
+                background-size: 20px 20px;
+                width: 20px;
+                height: 20px;
+                margin-right: 10px;
+            }
         </style>
     </head>
     <body>
@@ -150,6 +202,7 @@
             <div id="content-panel"></div>
         </div>
         <footer>
+
             <div id="content-stats"></div>
         </footer>
         <div id="connexionModal">
@@ -232,12 +285,12 @@
 
         function refreshContentStats() {
             document.getElementById("content-stats").innerHTML = `
-            <div>level: ${currentAccount.experience || 0}</div>
-            <div>life: ${currentAccount.lifePoints || 0}/${currentAccount.maxLifePoints || 0}</div>
-            <div>energy: ${currentAccount.energyPoints || 0}/${currentAccount.maxEnergyPoints || 0}</div>
-            <div>pods: ${currentAccount.weight || 0}/${currentAccount.weightMax || 0}</div>
-            <div>kamas: ${currentAccount.kamas || 0}</div>
-            <div>map: ${currentAccount.mapId || 0}</div>
+            <div class="level">${currentAccount.level || 0}</div>
+            <div class="life">${currentAccount.lifePoints || 0}/${currentAccount.maxLifePoints || 0}</div>
+            <div class="energy">${currentAccount.energyPoints || 0}/${currentAccount.maxEnergyPoints || 0}</div>
+            <div class="pods">${currentAccount.weight || 0}/${currentAccount.weightMax || 0}</div>
+            <div class="kamas">${currentAccount.kamas || 0}</div>
+            <div class="map">${currentAccount.mapId || 0}</div>
             `;
         }
 
@@ -250,6 +303,8 @@
         var moment = require("moment");
         var Primus = require("./src/libs/primus.js");
         var { EventEmitter } = require("events");
+
+        var CharacterService = require("./src/services/character.service");
 
         var AppService = require("./src/services/app.service");
         var ContextService = require("./src/services/context.service");
@@ -308,6 +363,8 @@
                     case "ServersListMessage": ServersListMessage(primus, payload);
                         break;
                     case "SelectedServerDataMessage": SelectedServerDataMessage(primus, payload);
+                        break;
+                    case "SelectedServerRefusedMessage": SelectedServerRefusedMessage(primus, payload);
                         break;
                 }
             })
@@ -398,6 +455,10 @@
             send(primus, "disconnecting", "SWITCHING_TO_GAME");
             emitter.emit("connectionToGameServer");
         }
+        function SelectedServerRefusedMessage(primus, payload) {
+            logMessage("SelectedServerRefusedMessage");
+            disconnecting();
+        }
         function disconnecting() {
             send(primus, "disconnecting", "CLIENT_CLOSING");
             logMessage("Déconnexion");
@@ -432,12 +493,12 @@
             currentAccount.weightMax = payload.weightMax;
         }
         function CharacterStatsListMessage(primus, payload) {
-            currentAccount.experience = payload.experience;
-            currentAccount.lifePoints = payload.lifePoints;
-            currentAccount.maxLifePoints = payload.maxLifePoints;
-            currentAccount.energyPoints = payload.energyPoints;
-            currentAccount.maxEnergyPoints = payload.maxEnergyPoints;
-            currentAccount.kamas = payload.kamas;
+            currentAccount.level = CharacterService.levelFromExperience(payload.stats.experience);
+            currentAccount.lifePoints = payload.stats.lifePoints;
+            currentAccount.maxLifePoints = payload.stats.maxLifePoints;
+            currentAccount.energyPoints = payload.stats.energyPoints;
+            currentAccount.maxEnergyPoints = payload.stats.maxEnergyPoints;
+            currentAccount.kamas = payload.stats.kamas;
             refreshContentStats();
         }
         async function CurrentMapMessage(primus, payload) {
@@ -446,7 +507,7 @@
             sendMessage(primus, "MapInformationsRequestMessage", {mapId:currentAccount.mapId})
         }
         async function ChatServerMessage(primus, payload) {
-            logMessage(`<b>${payload.senderName}</b> ${payload.content}`);
+            //logMessage(`<b>${payload.senderName}</b> ${payload.content}`);
         }
 
         /* Primus + Dofus function */
