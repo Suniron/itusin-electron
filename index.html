@@ -78,16 +78,32 @@
                 display: flex;
                 flex-direction: column;
                 padding: 5px;
+                overflow: auto;
             }
             .log {
                 width: 100%;
-                color: #fff;
+                color: #000;
             }
             footer {
                 width: 100vw;
                 height: 50px;
                 padding: 10px;
                 background: #212529;
+                color: #fff;
+            }
+            #content-stats {
+                width: 100%;
+                height: 100%;
+                background: #4c4c4c;
+                border-radius: 3px;
+                display: flex;
+            }
+            #content-stats div {
+                width: calc(100%/6);
+                height: 100%;
+                display: flex;
+                justify-content: center;
+                align-items: center;
             }
             #connexionModal {
                 display: none;
@@ -134,7 +150,7 @@
             <div id="content-panel"></div>
         </div>
         <footer>
-
+            <div id="content-stats"></div>
         </footer>
         <div id="connexionModal">
             <div id="closeConnexionModal" onclick="closeNewConnect()">x</div>
@@ -182,11 +198,13 @@
                 refreshUI();
             }
             closeNewConnect();
+            connect();
         }
 
         function refreshUI() {
             refreshContentNav();
             refreshContentPanel();
+            refreshContentStats();
         }
 
         function refreshContentNav() {
@@ -212,8 +230,21 @@
             </div>`;
         }
 
+        function refreshContentStats() {
+            document.getElementById("content-stats").innerHTML = `
+            <div>level: ${currentAccount.experience || 0}</div>
+            <div>life: ${currentAccount.lifePoints || 0}/${currentAccount.maxLifePoints || 0}</div>
+            <div>energy: ${currentAccount.energyPoints || 0}/${currentAccount.maxEnergyPoints || 0}</div>
+            <div>pods: ${currentAccount.weight || 0}/${currentAccount.weightMax || 0}</div>
+            <div>kamas: ${currentAccount.kamas || 0}</div>
+            <div>map: ${currentAccount.mapId || 0}</div>
+            `;
+        }
+
         function logMessage(message) {
-            document.getElementById("content-panel-console").innerHTML += `<div class="log">[${moment().format("HH:mm:ss")}] ${message}</div>`
+            var console = document.getElementById("content-panel-console");
+            console.innerHTML += `<div class="log">[${moment().format("HH:mm:ss")}] ${message}</div>`;
+            console.scrollTop = console.scrollHeight;
         }
 
         var moment = require("moment");
@@ -293,22 +324,30 @@
             primus.on("data", payload => {
                 console.log(`[${moment().format("HH:mm:ss.SSS")}] SOCKET | \u001b[34mRCV\u001b[37m \u001b[30m| ${payload._messageType}`);
                 switch (payload._messageType) {
-                    /*
                     case "HelloGameMessage": HelloGameMessage(primus, payload);
                         break;
-                    case 'TrustStatusMessage': TrustStatusMessage(primus, payload);
+                    case "TrustStatusMessage": TrustStatusMessage(primus, payload);
                         break;
-                    case 'CharactersListMessage': CharactersListMessage(primus, payload);
+                    case "QueueStatusMessage": QueueStatusMessage(primus, payload);
                         break;
-                    case 'CharacterSelectedSuccessMessage': CharacterSelectedSuccessMessage(primus, payload);
+                    case "CharactersListMessage": CharactersListMessage(primus, payload);
                         break;
-                    case 'CurrentMapMessage': CurrentMapMessage(primus, payload);
+                    case "CharacterSelectedSuccessMessage": CharacterSelectedSuccessMessage(primus, payload);
                         break;
+                    case "InventoryWeightMessage": InventoryWeightMessage(primus, payload);
+                        break;
+                    case "CharacterStatsListMessage": CharacterStatsListMessage(primus, payload);
+                        break;
+                    case "CurrentMapMessage": CurrentMapMessage(primus, payload);
+                        break;
+                        /*
                     case 'MapComplementaryInformationsDataMessage': MapComplementaryInformationsDataMessage(primus, payload);
                         break;
                     case 'NpcDialogQuestionMessage': NpcDialogQuestionMessage(primus, payload);
                         break;
                         */
+                    case "ChatServerMessage": ChatServerMessage(primus, payload);
+                        break;
                 }
             })
             primus.on("reconnected", () => console.log("reconnected"))
@@ -329,7 +368,7 @@
             send(primus, "login", {key: payload.key, salt: payload.salt, token: currentAccount.token, username: currentAccount.username});
         }
         function LoginQueueStatusMessage(primus, payload) {
-            logMessage(`LoginQueueStatusMessage`);
+            logMessage(`Position dans la file d'attente ${payload.position}/${payload.total}`);
         }
         function IdentificationSuccessMessage(primus, payload) {
             currentAccount.accountSessionId = payload.login;
@@ -342,9 +381,11 @@
             if (!servers.length) {
                 console.log("Aucun personnage sur ce compte");
                 logMessage("Aucun personnage sur ce compte");
+                disconnecting();
                 return;
             }
             var server = servers[0];
+            logMessage(`Selection du serveur ${server._name}`);
             sendMessage(primus, "ServerSelectionMessage", {serverId: server.id});
         }
         function SelectedServerDataMessage(primus, payload) {
@@ -357,10 +398,55 @@
             send(primus, "disconnecting", "SWITCHING_TO_GAME");
             emitter.emit("connectionToGameServer");
         }
+        function disconnecting() {
+            send(primus, "disconnecting", "CLIENT_CLOSING");
+            logMessage("Déconnexion");
+            connected = false;
+        }
 
         /* Game */
         function openGameServer(primus) {
             send(primus, "connecting", {language: "fr", server: currentAccount.server, client: "android", appVersion: AppService.appVersion, buildVersion: AppService.buildVersion});
+        }
+        function HelloGameMessage(primus, payload) {
+            sendMessage(primus, "AuthenticationTicketMessage", {ticket: currentAccount.ticket, lang: "fr"});
+        }
+        function TrustStatusMessage(primus, payload) {
+            sendMessage(primus, "CharactersListRequestMessage", {type: "CharactersListRequestMessage"})
+        }
+        function QueueStatusMessage(primus, payload) {
+            logMessage(`Position dans la file d'attente ${payload.position}/${payload.total}`);
+        }
+        function CharactersListMessage(primus, payload) {
+            sendMessage(primus, "CharacterFirstSelectionMessage", {id: payload.characters[0].id, doTutorial: false})
+        }
+        function CharacterSelectedSuccessMessage(primus, payload) {
+            currentAccount.characterId = payload.infos.id;
+            currentAccount.level = payload.infos.level;
+            currentAccount.characterName = payload.infos.name;
+            logMessage(`Sélection du personnage ${currentAccount.characterName} (Niveau ${currentAccount.level})`);
+            sendMessage(primus, "GameContextCreateRequestMessage");
+        }
+        function InventoryWeightMessage(primus, payload) {
+            currentAccount.weight = payload.weight;
+            currentAccount.weightMax = payload.weightMax;
+        }
+        function CharacterStatsListMessage(primus, payload) {
+            currentAccount.experience = payload.experience;
+            currentAccount.lifePoints = payload.lifePoints;
+            currentAccount.maxLifePoints = payload.maxLifePoints;
+            currentAccount.energyPoints = payload.energyPoints;
+            currentAccount.maxEnergyPoints = payload.maxEnergyPoints;
+            currentAccount.kamas = payload.kamas;
+            refreshContentStats();
+        }
+        async function CurrentMapMessage(primus, payload) {
+            currentAccount.mapId = payload.mapId;
+            //currentAccount.map = await MapService.resolveMap(payload.mapId);
+            sendMessage(primus, "MapInformationsRequestMessage", {mapId:currentAccount.mapId})
+        }
+        async function ChatServerMessage(primus, payload) {
+            logMessage(`<b>${payload.senderName}</b> ${payload.content}`);
         }
 
         /* Primus + Dofus function */
