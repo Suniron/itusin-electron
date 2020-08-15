@@ -3,52 +3,134 @@
     <head>
         <meta charset="UTF-8">
         <title>Itusin Electron</title>
+        <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
         <style>
+            /* Main component */
             body {
                 margin: 0;
-                background: #212529;
+                background: #7f7f7f;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                font-family: 'Roboto', sans-serif;
+            }
+            header {
+                width: 100vw;
+                height: 50px;
+                padding: 5px;
+                -webkit-app-region: drag;
+            }
+            .content {
+                width: calc(100vw - 10px);
+                height: calc(100vh - 100px);
+                padding: 5px;
+                background: #666666;
+                border-radius: 3px;
+            }
+            footer {
+                width: 100vw;
+                height: 50px;
+                padding: 5px;
+                color: #000;
+            }
+
+            /* Shared */
+            button {
+                background: #000 !important;
+                color: #fff !important;
+                width: 120px !important;
+                font-size: 14px !important;
+                -webkit-app-region: no-drag;
+            }
+            button:focus {
+                box-shadow: none !important;
+            }
+
+            /* Header */
+            #header-content {
+                width: 100%;
+                height: 100%;
+                display: flex;
+                justify-content: space-between;
+            }
+            .users, .quit {
+                max-width: 40px;
+                min-height: 40px;
+                display: flex;
+            }
+            .users:after {
+                content: '';
+                background-image: url(assets/users.svg);
+                background-size: 40px 40px;
+                width: 40px;
+                height: 40px;
+                cursor: pointer;
+                -webkit-app-region: no-drag;
+            }
+            .quit:after {
+                content: '';
+                background-image: url(assets/quit.svg);
+                background-size: 40px 40px;
+                width: 40px;
+                height: 40px;
+                cursor: pointer;
+                -webkit-app-region: no-drag;
+            }
+
+            /* Manage modal */
+            #manageModal {
+                display: none;
+                position: fixed;
+                width: 300px;
+                padding: 10px;
+                background: #7f7f7f;
+                border-radius: 3px; 
+            }
+            #manageModal form {
+                width: 100%;
                 display: flex;
                 flex-direction: column;
                 justify-content: center;
                 align-items: center;
             }
-            header {
-                width: 100vw;
-                height: 58px;
-                padding: 10px;
-                background: #212529;
+            #manageModal label {
+                color: #000 !important;
+            }
+            #manageModal input {
+                width: 250px !important;
+            }
+            #manageModal button {
+                margin-top: 10px;
+            }
+            .quitManage {
+                position: absolute;
+                top: 0px;
+                right: 0px;
+                width: 30px;
+                height: 30px;
                 display: flex;
-                justify-content: space-between;
-                align-items: center;
-                -webkit-app-region: drag;
             }
-            button {
-                -webkit-app-region: no-drag;
-                background: #314CB6 !important;
-                color: #fff !important;
-                width: 120px !important;
+            .quitManage:after {
+                content: '';
+                background-image: url(assets/quit.svg);
+                background-size: 30px 30px;
+                width: 30px;
+                height: 30px;
+                cursor: pointer;
             }
-            button:focus {
-                box-shadow: none !important;
-            }
+
+            /* Content */
             .characterbtn {
-                background: rgba(0,0,0,0.2) !important;
+                background: #4c4c4c !important;
                 margin-right: 5px;
+                text-transform: uppercase;
             }
             .characterbtn.current {
-                background: rgba(0,0,0,0.4) !important;
+                background: #333333 !important;
             }
-            .controlbtn {
-                background: rgba(0,0,0,0.1) !important;
-            }
-            #content {
-                width: calc(100vw - 20px);
-                height: calc(100vh - 108px);
-                padding: 5px;
-                background: #4c4c4c;
-                border-radius: 3px;
-            }
+
             #content-nav {
                 display: flex;
                 width: 100%;
@@ -56,7 +138,7 @@
             }
             #content-panel {
                 width: 100%;
-                height: calc(100% - 48px);
+                height: calc(100% - 45px);
             }
             #content-panel-container {
                 width: 100%;
@@ -72,7 +154,7 @@
             #content-panel-console {
                 width: 100%;
                 height: 100%;
-                background: rgba(255,255,255,0.5);
+                background: #999999;
                 border-radius: 3px;
                 margin-bottom: -5px;
                 display: flex;
@@ -84,17 +166,11 @@
                 width: 100%;
                 color: #000;
             }
-            footer {
-                width: 100vw;
-                height: 50px;
-                padding: 10px;
-                background: #212529;
-                color: #fff;
-            }
+
+            /* Footer */
             #content-stats {
                 width: 100%;
                 height: 100%;
-                background: #4c4c4c;
                 border-radius: 3px;
                 display: flex;
             }
@@ -104,109 +180,189 @@
                 display: flex;
                 justify-content: flex-start;
                 align-items: center;
-                padding-left: 5px;
             }
-            #connexionModal {
-                display: none;
-                position: fixed;
-                width: 300px;
-                padding: 10px;
-                background: #212529;
-                border-radius: 3px; 
-            }
-            #connexionModal form {
-                width: 100%;
+            #content-stats div.icon {
+                width: 30px;
                 display: flex;
-                flex-direction: column;
                 justify-content: center;
                 align-items: center;
             }
-            #connexionModal label {
-                color: #fff !important;
+            #content-stats div.value {
+                width: calc(100% - 20px);
+                padding: 5px;
+                font-size: 14px;
+                user-select: none;
             }
-            #connexionModal input {
-                width: 250px !important;
+            #content-stats div.progress {
+                display: flex;
+                flex-direction: column;
+                justify-content: flex-start;
+                align-items: flex-start;
+                width: 100%;
             }
-            #connexionModal button {
-                margin-top: 10px;
-            }
-            #closeConnexionModal {
-                position: absolute;
-                top: 8px;
-                right: 8px;
-                line-height: 8px;
+
+            .progress .progress-tooltip {
+                visibility: hidden;
+                width: auto;
+                height: 30px;;
+                background-color: black;
                 color: #fff;
-                font-size: 20px;
-                cursor: pointer;
+                text-align: center;
+                border-radius: 3px;
+                padding: 5px;
+
+                /* Position the tooltip */
+                position: absolute;
+                z-index: 1;
+                margin-top: -35px;
             }
+            .progress:hover .progress-tooltip {
+                visibility: visible;
+            }
+
+            #content-stats div.progress-bar {
+                margin-top: -30px;
+                width: 100%;
+                min-height: 30px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+            #content-stats div.progress-bar-value {
+                width: 100%;
+                min-height: 30px;
+                color: #000;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                z-index: 1;
+            }
+
             .level, .life, .energy, .pods, .kamas, .map {
                 user-select: none;
             }
             .level:before {
-                content: "";
+                content: '';
                 background-image: url(assets/level.svg);
                 background-size: 20px 20px;
                 width: 20px;
                 height: 20px;
-                margin-right: 10px;
             }
             .life:before {
-                content: "";
+                content: '';
                 background-image: url(assets/life.svg);
                 background-size: 20px 20px;
                 width: 20px;
                 height: 20px;
-                margin-right: 10px;
             }
             .energy:before {
-                content: "";
+                content: '';
                 background-image: url(assets/energy.svg);
                 background-size: 20px 20px;
                 width: 20px;
                 height: 20px;
-                margin-right: 10px;
             }
             .pods:before {
-                content: "";
+                content: '';
                 background-image: url(assets/pods.svg);
                 background-size: 20px 20px;
                 width: 20px;
                 height: 20px;
-                margin-right: 10px;
             }
             .kamas:before {
-                content: "";
+                content: '';
                 background-image: url(assets/kamas.svg);
                 background-size: 20px 20px;
                 width: 20px;
                 height: 20px;
-                margin-right: 10px;
             }
             .map:before {
-                content: "";
+                content: '';
                 background-image: url(assets/map.svg);
                 background-size: 20px 20px;
                 width: 20px;
                 height: 20px;
-                margin-right: 10px;
             }
         </style>
     </head>
     <body>
         <header>
-            <button type="button" class="btn" onclick="openNewConnect()">Connexion</button>
-            <button type="button" class="btn" onclick="quit()">Fermer</button>
+            <div id="header-content">
+                <div class="users" onclick="manage()"></div>
+                <div class="quit" onclick="quit()"></div>
+            </div>
         </header>
-        <div id="content">
+        <div class="content">
             <div id="content-nav"></div>
-            <div id="content-panel"></div>
+            <div id="content-panel">
+                <div id="content-panel-container">
+                    <div id="content-panel-control">
+                    </div>
+                    <div id="content-panel-console">
+                    </div>
+                </div>
+            </div>
         </div>
         <footer>
-
-            <div id="content-stats"></div>
+            <div id="content-stats">
+                <div>
+                    <div class="icon level"></div>
+                    <div class="value">
+                        <div class="progress">
+                            <div class="progress-bar-value">1 (0%)</div>
+                            <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="icon life"></div>
+                    <div class="value">
+                        <div class="progress">
+                            <div class="progress-bar-value">0%</div>
+                            <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="icon energy"></div>
+                    <div class="value">
+                        <div class="progress">
+                            <div class="progress-bar-value">0%</div>
+                            <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="icon pods"></div>
+                    <div class="value">
+                        <div class="progress">
+                            <div class="progress-bar-value">0%</div>
+                            <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="icon kamas"></div>
+                    <div class="value">
+                        <div class="progress">
+                            <div class="progress-bar-value">0</div>
+                            <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <div class="icon map"></div>
+                    <div class="value">
+                        <div class="progress">
+                            <div class="progress-bar-value">0</div>
+                            <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </footer>
-        <div id="connexionModal">
-            <div id="closeConnexionModal" onclick="closeNewConnect()">x</div>
+        <div id="manageModal">
+            <div class="quitManage" onclick="closeManage()"></div>
             <form>
                 <div class="form-group">
                     <label for="username">Nom de compte</label>
@@ -227,79 +383,7 @@
         </div>
     </body>
     <script>
-        const ipc = require("electron").ipcRenderer;
-
-        function quit() {
-			ipc.send("quit");
-		}
-
-        function openNewConnect() {
-            document.getElementById("connexionModal").style.display = "flex";
-        }
-
-        function closeNewConnect() {
-            document.getElementById("connexionModal").style.display = "none";
-        }
-
-        function loadNewAccount() {
-            var username = document.getElementById("username").value;
-            var password = document.getElementById("password").value;
-            if (accountList.find(account => account.username === username) === undefined) {
-                var dofusAccount = new DofusAccount(username, password);
-                accountList.push(dofusAccount);
-                currentAccount = dofusAccount;
-                refreshUI();
-            }
-            closeNewConnect();
-            connect();
-        }
-
-        function refreshUI() {
-            refreshContentNav();
-            refreshContentPanel();
-            refreshContentStats();
-        }
-
-        function refreshContentNav() {
-            var contentNavBtn = accountList.map(account => `<button type="button" class="btn characterbtn" id="${account.username}" onclick="focusAccount('${account.username}')">${account.username}</button>`).join('');
-            document.getElementById("content-nav").innerHTML = contentNavBtn;
-            document.getElementById(currentAccount.username).classList.add("current");
-        }
-
-        function focusAccount(username) {
-            if (currentAccount.username !== username) {
-                currentAccount = accountList.find(account => account.username === username);
-                refreshUI();
-            }
-        }
-
-        function refreshContentPanel() {
-            document.getElementById("content-panel").innerHTML = `<div id="content-panel-container">
-                <div id="content-panel-control">
-                    <button type="button" class="btn characterbtn current" onclick="connect()">Connexion</button>
-                </div>
-                <div id="content-panel-console">
-                </div>
-            </div>`;
-        }
-
-        function refreshContentStats() {
-            document.getElementById("content-stats").innerHTML = `
-            <div class="level">${currentAccount.level || 0}</div>
-            <div class="life">${currentAccount.lifePoints || 0}/${currentAccount.maxLifePoints || 0}</div>
-            <div class="energy">${currentAccount.energyPoints || 0}/${currentAccount.maxEnergyPoints || 0}</div>
-            <div class="pods">${currentAccount.weight || 0}/${currentAccount.weightMax || 0}</div>
-            <div class="kamas">${currentAccount.kamas || 0}</div>
-            <div class="map">${currentAccount.mapId || 0}</div>
-            `;
-        }
-
-        function logMessage(message) {
-            var console = document.getElementById("content-panel-console");
-            console.innerHTML += `<div class="log">[${moment().format("HH:mm:ss")}] ${message}</div>`;
-            console.scrollTop = console.scrollHeight;
-        }
-
+        var numeral = require("numeral");
         var moment = require("moment");
         var Primus = require("./src/libs/primus.js");
         var { EventEmitter } = require("events");
@@ -317,8 +401,143 @@
 
         var DofusAccount = require("./src/models/dofus-account");
 
+        var currentAccount = new DofusAccount();
+
+        const ipc = require("electron").ipcRenderer;
+
+        function quit() {
+			ipc.send("quit");
+		}
+
+        function manage() {
+            document.getElementById("manageModal").style.display = "flex";
+        }
+
+        function closeManage() {
+            document.getElementById("manageModal").style.display = "none";
+        }
+
+        function loadNewAccount() {
+            var username = document.getElementById("username").value;
+            var password = document.getElementById("password").value;
+            if (accountList.find(account => account.username === username) === undefined) {
+                var dofusAccount = new DofusAccount(username, password);
+                accountList.push(dofusAccount);
+                currentAccount = dofusAccount;
+                refreshUI();
+            }
+            closeManage();
+            connect();
+        }
+
+        function refreshUI() {
+            refreshContentNav();
+            refreshContentPanelControl();
+            refreshContentStats();
+        }
+
+        function refreshContentNav() {
+            var contentNavBtn = accountList.map(account => `<button type="button" class="btn characterbtn" id="${account.username}" onclick="focusAccount('${account.username}')">${account.username}</button>`).join('');
+            document.getElementById("content-nav").innerHTML = contentNavBtn;
+            document.getElementById(currentAccount.username).classList.add("current");
+        }
+
+        function focusAccount(username) {
+            if (currentAccount.username !== username) {
+                currentAccount = accountList.find(account => account.username === username);
+                refreshUI();
+            }
+        }
+
+        function refreshContentPanelControl() {
+            document.getElementById("content-panel-control").innerHTML = `
+                <button type="button" class="btn characterbtn current" onclick="${currentAccount.connected ? "disconnect()" : "connect()"}" id="connect">${currentAccount.connected ? "Déconnexion" : "Connexion"}</button>
+            `;
+        }
+
+        function refreshContentStats() {
+            currentAccount.level = currentAccount.level !== 0 ? currentAccount.level : 1;
+            currentAccount.experience = currentAccount.experience !== 0 ? currentAccount.experience : 0;
+            currentAccount.experienceProgress = currentAccount.experienceProgress !== 0 ? currentAccount.experienceProgress : 0;
+            currentAccount.experienceNextLevelFloor = currentAccount.experienceNextLevelFloor !== 0 ? currentAccount.experienceNextLevelFloor : 0;
+            currentAccount.lifePoints = currentAccount.lifePoints !== 0 ? currentAccount.lifePoints : 0;
+            currentAccount.maxLifePoints = currentAccount.maxLifePoints !== 0 ? currentAccount.maxLifePoints : 0;
+            currentAccount.lifePercent = currentAccount.lifePoints !== 0 && currentAccount.maxLifePoints !== 0 ? currentAccount.lifePoints/currentAccount.maxLifePoints * 100 : 0;
+            currentAccount.energyPoints = currentAccount.energyPoints !== 0 ? currentAccount.energyPoints : 0;
+            currentAccount.maxEnergyPoints = currentAccount.maxEnergyPoints !== 0 ? currentAccount.maxEnergyPoints : 0;
+            currentAccount.energyPercent = currentAccount.energyPoints !== 0 && currentAccount.maxEnergyPoints !== 0 ? currentAccount.energyPoints/currentAccount.maxEnergyPoints * 100 : 0;
+            currentAccount.weight = currentAccount.weight !== 0 ? currentAccount.weight : 0;
+            currentAccount.weightMax = currentAccount.weightMax !== 0 ? currentAccount.weightMax : 0;
+            currentAccount.weightPercent = currentAccount.weight !== 0 && currentAccount.weightMax !== 0 ? currentAccount.weight/currentAccount.weightMax * 100 : 0;
+            document.getElementById("content-stats").innerHTML = `
+            <div>
+                <div class="icon level"></div>
+                <div class="value">
+                    <div class="progress">
+                            <span class="progress-tooltip">${numeral(currentAccount.experience).format("0,0,0")}/${numeral(currentAccount.experienceNextLevelFloor).format("0,0,0")}</span>
+                            <div class="progress-bar-value">${currentAccount.level} (${currentAccount.experienceProgress}%)</div>
+                            <div class="progress-bar" role="progressbar" style="width: ${currentAccount.experienceProgress}%;" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div class="icon life"></div>
+                    <div class="value">
+                    <div class="progress">
+                        <span class="progress-tooltip">${currentAccount.lifePoints}/${currentAccount.maxLifePoints}</span>
+                        <div class="progress-bar-value">${currentAccount.lifePercent}%</div>
+                        <div class="progress-bar" role="progressbar" style="width: ${currentAccount.lifePercent}%;" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div class="icon energy"></div>
+                    <div class="value">
+                    <div class="progress">
+                        <span class="progress-tooltip">${currentAccount.energyPoints}/${currentAccount.maxEnergyPoints}</span>
+                        <div class="progress-bar-value">${currentAccount.energyPercent}%</div>
+                        <div class="progress-bar" role="progressbar" style="width: ${currentAccount.energyPercent}%;" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div class="icon pods"></div>
+                    <div class="value">
+                    <div class="progress">
+                        <span class="progress-tooltip">${currentAccount.weight}/${currentAccount.weightMax}</span>
+                        <div class="progress-bar-value">${currentAccount.weightPercent}%</div>
+                        <div class="progress-bar" role="progressbar" style="width: ${currentAccount.weightPercent}%;" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div class="icon kamas"></div>
+                    <div class="value">
+                    <div class="progress">
+                        <div class="progress-bar-value">${numeral(currentAccount.kamas).format("0,0,0")}</div>
+                        <div class="progress-bar" role="progressbar" style="width: ${currentAccount.kamas !== 0 ? 100 : 0}%;" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <div class="icon map"></div>
+                    <div class="value">
+                    <div class="progress">
+                        <div class="progress-bar-value">${currentAccount.mapCoord}</div>
+                        <div class="progress-bar" role="progressbar" style="width: ${currentAccount.mapCoord !== 0 ? 100 : 0}%;" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                </div>
+            </div>
+            `;
+        }
+
+        function logMessage(message) {
+            var console = document.getElementById("content-panel-console");
+            console.innerHTML += `<div class="log">[${moment().format("HH:mm:ss")}] ${message}</div>`;
+            console.scrollTop = console.scrollHeight;
+        }
+
         var accountList = [];
-        var currentAccount;
 
         var emitter = new EventEmitter();
         emitter.on("connectionToGameServer", () => connectionToGameServer());
@@ -350,7 +569,7 @@
             primus = new Primus(socketURL);
             primus.on("open", () => openLoginServer(primus))
             primus.on("data", payload => {
-                console.log(`[${moment().format("HH:mm:ss.SSS")}] SOCKET | \u001b[34mRCV\u001b[37m \u001b[30m| ${payload._messageType}`);
+                //console.log(`[${moment().format("HH:mm:ss.SSS")}] SOCKET | \u001b[34mRCV\u001b[37m \u001b[30m| ${payload._messageType}`);
                 switch (payload._messageType) {
                     case "ConnectionFailedMessage": ConnectionFailedMessage(primus, payload);
                         break;
@@ -379,7 +598,7 @@
             primus = new Primus(socketURL);
             primus.on("open", () => openGameServer(primus))
             primus.on("data", payload => {
-                console.log(`[${moment().format("HH:mm:ss.SSS")}] SOCKET | \u001b[34mRCV\u001b[37m \u001b[30m| ${payload._messageType}`);
+                //console.log(`[${moment().format("HH:mm:ss.SSS")}] SOCKET | \u001b[34mRCV\u001b[37m \u001b[30m| ${payload._messageType}`);
                 switch (payload._messageType) {
                     case "HelloGameMessage": HelloGameMessage(primus, payload);
                         break;
@@ -415,7 +634,6 @@
 
         /* Authentication */
         function openLoginServer(primus) {
-            console.log("openLoginServer");
             send(primus, "connecting", {language: "fr", server: "login", client: "android", appVersion: AppService.appVersion, buildVersion: AppService.buildVersion});
         }
         function ConnectionFailedMessage(primus, payload) {
@@ -432,13 +650,13 @@
             currentAccount.subscriptionEndDate = payload.subscriptionEndDate;
             currentAccount.connected = true;
             logMessage('Connexion réussie');
+            refreshContentPanelControl();
         }
         function ServersListMessage(primus, payload) {
             var servers = payload.servers.filter(s => s.charactersCount > 0);
             if (!servers.length) {
-                console.log("Aucun personnage sur ce compte");
                 logMessage("Aucun personnage sur ce compte");
-                disconnecting();
+                disconnect();
                 return;
             }
             var server = servers[0];
@@ -457,12 +675,28 @@
         }
         function SelectedServerRefusedMessage(primus, payload) {
             logMessage("SelectedServerRefusedMessage");
-            disconnecting();
+            disconnect();
         }
-        function disconnecting() {
+        function disconnect() {
+            currentAccount.connected = false;
             send(primus, "disconnecting", "CLIENT_CLOSING");
             logMessage("Déconnexion");
-            connected = false;
+            refreshContentPanelControl();
+            currentAccount.level = 1;
+            currentAccount.experience = 0;
+            currentAccount.experienceProgress = 0;
+            currentAccount.experienceNextLevelFloor = 0;
+            currentAccount.lifePoints = 0;
+            currentAccount.maxLifePoints = 0;
+            currentAccount.lifePercent = 0;
+            currentAccount.energyPoints = 0;
+            currentAccount.maxEnergyPoints = 0;
+            currentAccount.energyPercent = 0;
+            currentAccount.weight = 0;
+            currentAccount.weightMax = 0;
+            currentAccount.weightPercent = 0;
+            currentAccount.kamas = 0;
+            refreshContentStats();
         }
 
         /* Game */
@@ -493,6 +727,10 @@
             currentAccount.weightMax = payload.weightMax;
         }
         function CharacterStatsListMessage(primus, payload) {
+            currentAccount.experience = payload.stats.experience;
+            currentAccount.experienceLevelFloor = payload.stats.experienceLevelFloor;
+            currentAccount.experienceNextLevelFloor = payload.stats.experienceNextLevelFloor;
+            currentAccount.experienceProgress = parseInt((currentAccount.experience - currentAccount.experienceLevelFloor)/(currentAccount.experienceNextLevelFloor - currentAccount.experienceLevelFloor)*100);
             currentAccount.level = CharacterService.levelFromExperience(payload.stats.experience);
             currentAccount.lifePoints = payload.stats.lifePoints;
             currentAccount.maxLifePoints = payload.stats.maxLifePoints;
@@ -514,7 +752,7 @@
         function send(primus, call, data = null) {
             primus.write({ call, data });
             call = call === "sendMessage" ? data.type : call;
-            console.log(`[${moment().format("HH:mm:ss.SSS")}] SOCKET | \u001b[32mSND\u001b[37m \u001b[30m| ${call}`);
+            //console.log(`[${moment().format("HH:mm:ss.SSS")}] SOCKET | \u001b[32mSND\u001b[37m \u001b[30m| ${call}`);
         }
         function sendMessage(primus, type, data = null) {
             data = data !== undefined ? { type: type, data: data} : { type: type};

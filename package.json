@@ -20,6 +20,7 @@
 		"engine.io": "^3.4.2",
 		"engine.io-client": "^3.4.3",
 		"moment": "^2.27.0",
+		"numeral": "^2.0.6",
 		"request": "^2.88.2"
 	}
 }
