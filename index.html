@@ -393,6 +393,7 @@
         var AppService = require("./src/services/app.service");
         var ContextService = require("./src/services/context.service");
         var ConnectionService = require("./src/services/connection.service");
+        var MapService = require("./src/services/map.service");
 
         var HaapiKeysRequestModel = require("./src/models/haapi-keys-request-model");
         var ApiIdRequestModel = require("./src/models/api-id-request-model");
@@ -598,7 +599,7 @@
             primus = new Primus(socketURL);
             primus.on("open", () => openGameServer(primus))
             primus.on("data", payload => {
-                //console.log(`[${moment().format("HH:mm:ss.SSS")}] SOCKET | \u001b[34mRCV\u001b[37m \u001b[30m| ${payload._messageType}`);
+                console.log(`[${moment().format("HH:mm:ss.SSS")}] SOCKET | \u001b[34mRCV\u001b[37m \u001b[30m| ${payload._messageType}`);
                 switch (payload._messageType) {
                     case "HelloGameMessage": HelloGameMessage(primus, payload);
                         break;
@@ -673,12 +674,12 @@
             send(primus, "disconnecting", "SWITCHING_TO_GAME");
             emitter.emit("connectionToGameServer");
         }
-        function SelectedServerRefusedMessage(primus, payload) {
+        async function SelectedServerRefusedMessage(primus, payload) {
             if (payload.serverStatus === 4) {
                 logMessage("Serveur en maintenance");
+                await disconnectAndRetryIn(5);
             } else {
                 logMessage("SelectedServerRefusedMessage");
-
             }
             disconnect();
         }
@@ -702,6 +703,12 @@
             currentAccount.weightPercent = 0;
             currentAccount.kamas = 0;
             refreshContentStats();
+        }
+        async function disconnectAndRetryIn(minutes) {
+            disconnect();
+            logMessage(`Nouvelle tentative dans ${minutes} minutes`);
+            await new Promise(resolve => setTimeout(resolve, minutes * 60 * 1000)) // wait in ms
+            connect();
         }
 
         /* Game */
@@ -746,18 +753,22 @@
         }
         async function CurrentMapMessage(primus, payload) {
             currentAccount.mapId = payload.mapId;
+            currentAccount.mapCoord = await MapService.resolveMapPosition(payload.mapId);
+
             //currentAccount.map = await MapService.resolveMap(payload.mapId);
-            sendMessage(primus, "MapInformationsRequestMessage", {mapId:currentAccount.mapId})
+            sendMessage(primus, "mapComplementaryInformationsData", {channel: 0, content: "%pos%"});
+            //sendMessage(primus, "MapInformationsRequestMessage", {mapId:currentAccount.mapId})
         }
         async function ChatServerMessage(primus, payload) {
             //logMessage(`<b>${payload.senderName}</b> ${payload.content}`);
         }
 
+
         /* Primus + Dofus function */
         function send(primus, call, data = null) {
             primus.write({ call, data });
             call = call === "sendMessage" ? data.type : call;
-            //console.log(`[${moment().format("HH:mm:ss.SSS")}] SOCKET | \u001b[32mSND\u001b[37m \u001b[30m| ${call}`);
+            console.log(`[${moment().format("HH:mm:ss.SSS")}] SOCKET | \u001b[32mSND\u001b[37m \u001b[30m| ${call}`);
         }
         function sendMessage(primus, type, data = null) {
             data = data !== undefined ? { type: type, data: data} : { type: type};

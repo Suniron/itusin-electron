@@ -19,6 +19,7 @@
 		"electron": "^9.2.0",
 		"engine.io": "^3.4.2",
 		"engine.io-client": "^3.4.3",
+		"load-json-file": "^6.2.0",
 		"moment": "^2.27.0",
 		"numeral": "^2.0.6",
 		"request": "^2.88.2"
