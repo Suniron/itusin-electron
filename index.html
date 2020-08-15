@@ -674,7 +674,12 @@
             emitter.emit("connectionToGameServer");
         }
         function SelectedServerRefusedMessage(primus, payload) {
-            logMessage("SelectedServerRefusedMessage");
+            if (payload.serverStatus === 4) {
+                logMessage("Serveur en maintenance");
+            } else {
+                logMessage("SelectedServerRefusedMessage");
+
+            }
             disconnect();
         }
         function disconnect() {
