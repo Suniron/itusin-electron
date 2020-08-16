@@ -1,0 +1,33 @@
+{
+    "name": "[Move] Loop",
+    "move": [
+        {
+            "map": "0,3", 
+            "path": "right"
+        },
+        {
+            "map": "1,3", 
+            "path": "right"
+        },
+        {
+            "map": "2,3", 
+            "path": "bottom"
+        },
+        {
+            "map": "2,4", 
+            "path": "left"
+        },
+        {
+            "map": "1,4", 
+            "path": "left"
+        },
+        {
+            "map": "0,4", 
+            "path": "top"
+        },
+        {
+            "map": "-1,4", 
+            "path": "right"
+        }
+    ]
+}

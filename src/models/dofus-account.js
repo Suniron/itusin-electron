@@ -12,6 +12,7 @@ module.exports = class DofusAccount {
 		this.importScriptReady = false;
 		this.startScriptReady = false;
 
+		/* Stats */
 		this.experienceLevelFloor = 0;
 		this.experienceNextLevelFloor = 0;
 		this.experienceProgress = 0;
@@ -28,8 +29,21 @@ module.exports = class DofusAccount {
         this.kamas = 0;
 		this.mapCoord = 0;
 		
+		/* Script */
+		this.map = {};
 		this.script = new Script();
+		this.scriptRunning = false;
 
+		/* Movements */
+		this.dir = "";
+		this.characterCellId = -1;
+		this.targetCellId = -1;
+		this.newMapId = -1;
+		this.occupiedCells = [];
+		this.keyMovements = [];
+		this.timeout = 0;
+
+		/* Other */
 		this.emitter = new EventEmitter();
 		this.username = username;
 		this.password = password;
@@ -45,7 +59,6 @@ module.exports = class DofusAccount {
 		this.npcPositions = [];
 
 		this.isMoving = false;
-		this.occupiedCells = [];
 		this.isMovingCounter = 0;
 		this.experienceCharacter = 0;
 		this.level = 0;
@@ -55,7 +68,5 @@ module.exports = class DofusAccount {
 		this.readyForFight = false;
 		this.nbInvocations = 0;
 
-		this.scriptRunning = false;
-		this.dir = "";
     }
 }

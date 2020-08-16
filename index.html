@@ -416,6 +416,7 @@
         var { EventEmitter } = require("events");
 
         var CharacterService = require("./src/services/character.service");
+        var PathFindingService = require("./src/services/pathfinding.service.js");
 
         var AppService = require("./src/services/app.service");
         var ContextService = require("./src/services/context.service");
@@ -430,6 +431,7 @@
         var DofusAccount = require("./src/models/dofus-account");
         var Script = require("./src/models/script");
 
+        MapService.initialize();
         var currentAccount = new DofusAccount();
 
         const ipc = require("electron").ipcRenderer;
@@ -513,6 +515,8 @@
                 document.getElementById("startScript").classList.add("stop");
                 document.getElementById("startScript").onclick = stopScript;
             }
+            currentAccount.scriptRunning = true;
+            scriptExecution();
         }
 
         function stopScript() {
@@ -522,6 +526,7 @@
                 document.getElementById("startScript").classList.add("play");
                 document.getElementById("startScript").onclick = startScript;
             }
+            currentAccount.scriptRunning = false;
         }
 
         function refreshUI() {
@@ -563,7 +568,7 @@
                 ${currentAccount.startScriptReady ? `
                     <button type="button" class="btn characterbtn current play" onclick="startScript()" id="startScript"></button>
                 `: `
-                    <button type="button" class="btn characterbtn current play" onclick="startScript()" id="startScript" disabled></button>
+                    <button type="button" class="btn characterbtn current ${currentAccount.scriptRunning ? "stop" : "play"}" onclick="startScript()" id="startScript" disabled></button>
                 `}
                 <button type="button" class="btn characterbtn current" onclick="unloadAccount()">Décharger</button>
             ` : '';
@@ -733,9 +738,9 @@
                         break;
                     case "CurrentMapMessage": CurrentMapMessage(primus, payload);
                         break;
-                        /*
-                    case 'MapComplementaryInformationsDataMessage': MapComplementaryInformationsDataMessage(primus, payload);
+                    case "MapComplementaryInformationsDataMessage": MapComplementaryInformationsDataMessage(primus, payload);
                         break;
+                        /*
                     case 'NpcDialogQuestionMessage': NpcDialogQuestionMessage(primus, payload);
                         break;
                         */
@@ -802,6 +807,7 @@
         function disconnect() {
             currentAccount.connected = false;
             currentAccount.importScriptReady = false;
+            currentAccount.startScriptReady = false;
             send(primus, "disconnecting", "CLIENT_CLOSING");
             logMessage("Déconnexion");
             refreshContentPanelControl();
@@ -872,18 +878,23 @@
         async function CurrentMapMessage(primus, payload) {
             currentAccount.mapId = payload.mapId;
             currentAccount.mapCoord = await MapService.resolveMapPosition(payload.mapId);
-            refreshContentStats();
+            console.log("CurrentMapMessage", currentAccount.mapCoord);
 
-            //currentAccount.map = await MapService.resolveMap(payload.mapId);
-            sendMessage(primus, "mapComplementaryInformationsData", {channel: 0, content: "%pos%"});
-            //sendMessage(primus, "MapInformationsRequestMessage", {mapId:currentAccount.mapId})
+            refreshContentStats();
+            currentAccount.map = await MapService.resolveMap(payload.mapId);
+            sendMessage(primus, "MapInformationsRequestMessage", {mapId:currentAccount.mapId})
+        }
+        async function MapComplementaryInformationsDataMessage(primus, payload) {
+            const character = payload.actors.find((a) => a.contextualId === currentAccount.characterId);
+            if (character) {
+                currentAccount.characterCellId = character.disposition.cellId;
+            }
             currentAccount.importScriptReady = true;
             refreshContentPanelControl();
         }
         async function ChatServerMessage(primus, payload) {
             //logMessage(`<b>${payload.senderName}</b> ${payload.content}`);
         }
-
 
         /* Primus + Dofus function */
         function send(primus, call, data = null) {
@@ -894,6 +905,52 @@
         function sendMessage(primus, type, data = null) {
             data = data !== undefined ? { type: type, data: data} : { type: type};
             send(primus, "sendMessage", data);
+        }
+
+        /* Script Process */
+        async function scriptExecution() {
+            if (!currentAccount.scriptRunning) return;
+
+            var action = currentAccount.script.move.find(move => move.map === currentAccount.mapCoord);
+            if (action === undefined) {
+                logMessage(`Aucune action pour la map ${currentAccount.mapCoord}`);
+                stopScript();
+                return;
+            }
+
+            await PathFindingService.constructMapPoints();
+            await PathFindingService.initGrid();
+            await PathFindingService.fillPathGrid(currentAccount.map);
+            
+
+            if (action.custom) {
+                console.log("custom");
+                logMessage(`Action custom non implémenté`);
+                stopScript();
+                return;
+            } else if (action.fight) {
+                logMessage(`Action combat non implémenté`);
+                stopScript();
+                return;
+            } else { // déplacement
+
+                currentAccount.dir = action.path;
+                logMessage(`go ${currentAccount.dir} [${currentAccount.mapCoord}]`);
+                currentAccount.targetCellId = await PathFindingService.getRandomCellId(currentAccount);
+                currentAccount.newMapId = await MapService.resolveNewMapId(currentAccount.map, currentAccount.dir);
+                currentAccount.keyMovements = await PathFindingService.getPath(currentAccount.characterCellId, currentAccount.targetCellId, currentAccount.occupiedCells, true, false);
+
+                sendMessage(primus, "GameMapMovementRequestMessage", {keyMovements:PathFindingService.compressPath(currentAccount.keyMovements), mapId:currentAccount.mapId});
+                currentAccount.timeout = await PathFindingService.computeDuraction(currentAccount.keyMovements);
+                await new Promise(resolve => setTimeout(resolve, currentAccount.timeout));
+                sendMessage(primus, "GameMapMovementConfirmMessage", null);
+                await new Promise(resolve => setTimeout(resolve, 50));
+                sendMessage(primus, 'ChangeMapMessage', {mapId: currentAccount.newMapId});
+
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                // Continue process
+                scriptExecution();
+            }
         }
     </script>
 </html>

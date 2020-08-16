@@ -1,6 +1,6 @@
 module.exports = class Move {
-    constructor(map, direction) {
+    constructor(map, path) {
         this.map = map;
-        this.direction = direction;
+        this.path = path;
     }
 }

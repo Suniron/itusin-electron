@@ -5,8 +5,8 @@ var win = null;
 function createWindow () {
 	win = new BrowserWindow({
 		show: false,
-		width: 800,
-		height: 600,
+		width: 1600,
+		height: 800,
 		frame: false,
 		webPreferences: {
 			nodeIntegration: true
@@ -18,7 +18,7 @@ function createWindow () {
 	win.once("ready-to-show", () => {
 		win.show();
 	})
-	//win.webContents.openDevTools();
+	win.webContents.openDevTools();
 }
 app.whenReady().then(createWindow)
 app.on("window-all-closed", () => {
