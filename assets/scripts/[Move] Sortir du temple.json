@@ -1,0 +1,33 @@
+{
+    "name": "[Move] Sortir du temple",
+    "move": [
+        {
+            "map": "-5,-1", 
+            "path": "bottom"
+        },
+        {
+            "map": "-4,0", 
+            "path": "right"
+        },
+        {
+            "map": "-3,1", 
+            "path": "right"
+        },
+        {
+            "map": "-2,2", 
+            "path": "bottom"
+        },
+        {
+            "map": "0,3", 
+            "custom": "cutom1"
+        }
+    ],
+    "custom": [
+        {
+            "name": "custom1",
+            "arguments": "a",
+            "body": "return a"
+        }
+    ]
+
+}

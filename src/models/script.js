@@ -1,7 +1,7 @@
 module.exports = class Script {
-    constructor(name = "", type = "", move = []) {
+    constructor(name = "", move = [], custom = []) {
         this.name = name;
-        this.type = type;
         this.move = move;
+        this.custom = custom;
     }
 }

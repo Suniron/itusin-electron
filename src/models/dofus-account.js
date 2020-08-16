@@ -8,6 +8,10 @@ module.exports = class DofusAccount {
 		this.token = "";
 		this.sessionId = "";
 
+		this.connected = false;
+		this.importScriptReady = false;
+		this.startScriptReady = false;
+
 		this.experienceLevelFloor = 0;
 		this.experienceNextLevelFloor = 0;
 		this.experienceProgress = 0;
@@ -22,7 +26,9 @@ module.exports = class DofusAccount {
 		this.weightMax = 0;
 		this.weightPercent = 0;
         this.kamas = 0;
-        this.mapCoord = 0;
+		this.mapCoord = 0;
+		
+		this.script = new Script();
 
 		this.emitter = new EventEmitter();
 		this.username = username;
@@ -49,7 +55,6 @@ module.exports = class DofusAccount {
 		this.readyForFight = false;
 		this.nbInvocations = 0;
 
-		this.script = new Script();
 		this.scriptRunning = false;
 		this.dir = "";
     }

@@ -18,13 +18,13 @@
             }
             header {
                 width: 100vw;
-                height: 50px;
+                height: 45px;
                 padding: 5px;
                 -webkit-app-region: drag;
             }
             .content {
                 width: calc(100vw - 10px);
-                height: calc(100vh - 100px);
+                height: calc(100vh - 95px);
                 padding: 5px;
                 background: #666666;
                 border-radius: 3px;
@@ -41,12 +41,23 @@
                 background: #000 !important;
                 color: #fff !important;
                 width: 120px !important;
+                height: 35px !important;
                 font-size: 14px !important;
                 -webkit-app-region: no-drag;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+            button:not([disabled]):hover {
+                color: #007bff !important;
             }
             button:focus {
                 box-shadow: none !important;
             }
+            button:disabled {
+                cursor: default;
+            }
+
 
             /* Header */
             #header-content {
@@ -55,28 +66,12 @@
                 display: flex;
                 justify-content: space-between;
             }
-            .users, .quit {
-                max-width: 40px;
-                min-height: 40px;
-                display: flex;
+            .users {
+                min-width: 200px;
+                margin-right: 0px !important;
             }
-            .users:after {
-                content: '';
-                background-image: url(assets/users.svg);
-                background-size: 40px 40px;
-                width: 40px;
-                height: 40px;
-                cursor: pointer;
-                -webkit-app-region: no-drag;
-            }
-            .quit:after {
-                content: '';
-                background-image: url(assets/quit.svg);
-                background-size: 40px 40px;
-                width: 40px;
-                height: 40px;
-                cursor: pointer;
-                -webkit-app-region: no-drag;
+            .quit {
+                margin-right: 0px !important;
             }
 
             /* Manage modal */
@@ -134,11 +129,10 @@
             #content-nav {
                 display: flex;
                 width: 100%;
-                margin-bottom: 5px;
             }
             #content-panel {
                 width: 100%;
-                height: calc(100% - 45px);
+                height: 100%;
             }
             #content-panel-container {
                 width: 100%;
@@ -149,7 +143,7 @@
             }
             #content-panel-control {
                 width: 100%;
-                margin-bottom: 5px;
+                display: flex;
             }
             #content-panel-console {
                 width: 100%;
@@ -165,6 +159,39 @@
             .log {
                 width: 100%;
                 color: #000;
+            }
+
+            .play, .stop {
+                user-select: none;
+                display: flex;
+            }
+            .play:before {
+                content: '';
+                background-image: url(assets/play.svg);
+                background-size: 20px 20px;
+                width: 20px;
+                height: 20px;
+            }
+            button:not([disabled]).play:hover:before {
+                content: '';
+                background-image: url(assets/play-hover.svg);
+                background-size: 20px 20px;
+                width: 20px;
+                height: 20px;
+            }
+            .stop:before {
+                content: '';
+                background-image: url(assets/stop.svg);
+                background-size: 20px 20px;
+                width: 20px;
+                height: 20px;
+            }
+            button:not([disabled]).stop:hover:before {
+                content: '';
+                background-image: url(assets/stop-hover.svg);
+                background-size: 20px 20px;
+                width: 20px;
+                height: 20px;
             }
 
             /* Footer */
@@ -288,8 +315,8 @@
     <body>
         <header>
             <div id="header-content">
-                <div class="users" onclick="manage()"></div>
-                <div class="quit" onclick="quit()"></div>
+                <button type="button" class="btn characterbtn current users" onclick="manage()">Gestion des comptes</button>
+                <button type="button" class="btn characterbtn current quit" onclick="quit()">Quitter</button>
             </div>
         </header>
         <div class="content">
@@ -377,7 +404,7 @@
                     <input type="text" class="form-control" id="proxy" placeholder="http://user:pass@host:port">
                 </div>
                 <div class="form-group">
-                    <button type="button" class="btn" onclick="loadNewAccount()">Connexion</button>
+                    <button type="button" class="btn characterbtn current" onclick="loadNewAccount()">Connexion</button>
                 </div>
             </form>
         </div>
@@ -401,6 +428,7 @@
         var WebSocketRequestModel = require("./src/models/web-socket-request-model");
 
         var DofusAccount = require("./src/models/dofus-account");
+        var Script = require("./src/models/script");
 
         var currentAccount = new DofusAccount();
 
@@ -427,8 +455,73 @@
                 currentAccount = dofusAccount;
                 refreshUI();
             }
+
+            if (accountList.length === 1) {
+                document.getElementById("content-nav").style.marginBottom = "5px";
+                document.getElementById("content-panel-control").style.marginBottom = "5px";
+                document.getElementById("content-panel").style.height = "calc(100% - 45px)";
+            }
+
             closeManage();
             connect();
+        }
+
+        function unloadAccount() {
+            if (accountList.find(account => account.username === currentAccount.username) !== undefined) {
+                accountList = accountList.filter(account => account.username !== currentAccount.username);
+                currentAccount = accountList.length ? accountList[0] : new DofusAccount();
+                refreshUI();
+
+                if (accountList.length === 0) {
+                    document.getElementById("content-nav").style.marginBottom = "0px";
+                    document.getElementById("content-panel-control").style.marginBottom = "0px";
+                    document.getElementById("content-panel").style.height = "100%";
+                    clearContentPanelConsole();
+                }
+            }
+        }
+
+        function importScript() {
+            if (document.getElementById("script")) {
+                document.getElementById("script").click();
+            }
+        }
+
+        function loadScript(event) {
+            const files = event.target.files;
+            if (!files.length) return;
+
+            const reader = new FileReader();
+            reader.addEventListener("load", (event) => {
+                var script = JSON.parse(event.target.result);
+                currentAccount.script = new Script(
+                    script.name,
+                    script.move,
+                    script.custom
+                );
+                logMessage(`Chargement du script <b>${currentAccount.script.name}</b>`);
+                currentAccount.startScriptReady = true;
+                refreshContentPanelControl();
+            });
+            reader.readAsText(files[0]);
+        }
+
+        function startScript() {
+            logMessage(`Lancement du script <b>${currentAccount.script.name}</b>`);
+            if (document.getElementById("startScript")) {
+                document.getElementById("startScript").classList.remove("play");
+                document.getElementById("startScript").classList.add("stop");
+                document.getElementById("startScript").onclick = stopScript;
+            }
+        }
+
+        function stopScript() {
+            logMessage(`Arrèt du script <b>${currentAccount.script.name}</b>`);
+            if (document.getElementById("startScript")) {
+                document.getElementById("startScript").classList.remove("stop");
+                document.getElementById("startScript").classList.add("play");
+                document.getElementById("startScript").onclick = startScript;
+            }
         }
 
         function refreshUI() {
@@ -440,7 +533,15 @@
         function refreshContentNav() {
             var contentNavBtn = accountList.map(account => `<button type="button" class="btn characterbtn" id="${account.username}" onclick="focusAccount('${account.username}')">${account.username}</button>`).join('');
             document.getElementById("content-nav").innerHTML = contentNavBtn;
-            document.getElementById(currentAccount.username).classList.add("current");
+            if (document.getElementById(currentAccount.username)) {
+                document.getElementById(currentAccount.username).classList.add("current");
+            }
+        }
+
+        function clearContentPanelConsole() {
+            if (document.getElementById("content-panel-console")) {
+                document.getElementById("content-panel-console").innerHTML = "";
+            }
         }
 
         function focusAccount(username) {
@@ -451,9 +552,24 @@
         }
 
         function refreshContentPanelControl() {
-            document.getElementById("content-panel-control").innerHTML = `
+            document.getElementById("content-panel-control").innerHTML = accountList.length ? `
                 <button type="button" class="btn characterbtn current" onclick="${currentAccount.connected ? "disconnect()" : "connect()"}" id="connect">${currentAccount.connected ? "Déconnexion" : "Connexion"}</button>
-            `;
+                ${currentAccount.importScriptReady ? `
+                    <button type="button" class="btn characterbtn current" onclick="importScript()" id="importScript">Script</button>
+                    <input type="file" id="script" accept=".json" hidden>
+                `: `
+                    <button type="button" class="btn characterbtn current" onclick="importScript()" id="importScript" disabled>Script</button>
+                `}
+                ${currentAccount.startScriptReady ? `
+                    <button type="button" class="btn characterbtn current play" onclick="startScript()" id="startScript"></button>
+                `: `
+                    <button type="button" class="btn characterbtn current play" onclick="startScript()" id="startScript" disabled></button>
+                `}
+                <button type="button" class="btn characterbtn current" onclick="unloadAccount()">Décharger</button>
+            ` : '';
+            if (document.getElementById("script")) {
+                document.getElementById("script").addEventListener("change", event => loadScript(event));
+            }
         }
 
         function refreshContentStats() {
@@ -599,7 +715,7 @@
             primus = new Primus(socketURL);
             primus.on("open", () => openGameServer(primus))
             primus.on("data", payload => {
-                console.log(`[${moment().format("HH:mm:ss.SSS")}] SOCKET | \u001b[34mRCV\u001b[37m \u001b[30m| ${payload._messageType}`);
+                //console.log(`[${moment().format("HH:mm:ss.SSS")}] SOCKET | \u001b[34mRCV\u001b[37m \u001b[30m| ${payload._messageType}`);
                 switch (payload._messageType) {
                     case "HelloGameMessage": HelloGameMessage(primus, payload);
                         break;
@@ -685,6 +801,7 @@
         }
         function disconnect() {
             currentAccount.connected = false;
+            currentAccount.importScriptReady = false;
             send(primus, "disconnecting", "CLIENT_CLOSING");
             logMessage("Déconnexion");
             refreshContentPanelControl();
@@ -702,6 +819,7 @@
             currentAccount.weightMax = 0;
             currentAccount.weightPercent = 0;
             currentAccount.kamas = 0;
+            currentAccount.mapCoord = 0;
             refreshContentStats();
         }
         async function disconnectAndRetryIn(minutes) {
@@ -754,10 +872,13 @@
         async function CurrentMapMessage(primus, payload) {
             currentAccount.mapId = payload.mapId;
             currentAccount.mapCoord = await MapService.resolveMapPosition(payload.mapId);
+            refreshContentStats();
 
             //currentAccount.map = await MapService.resolveMap(payload.mapId);
             sendMessage(primus, "mapComplementaryInformationsData", {channel: 0, content: "%pos%"});
             //sendMessage(primus, "MapInformationsRequestMessage", {mapId:currentAccount.mapId})
+            currentAccount.importScriptReady = true;
+            refreshContentPanelControl();
         }
         async function ChatServerMessage(primus, payload) {
             //logMessage(`<b>${payload.senderName}</b> ${payload.content}`);
@@ -768,7 +889,7 @@
         function send(primus, call, data = null) {
             primus.write({ call, data });
             call = call === "sendMessage" ? data.type : call;
-            console.log(`[${moment().format("HH:mm:ss.SSS")}] SOCKET | \u001b[32mSND\u001b[37m \u001b[30m| ${call}`);
+            //console.log(`[${moment().format("HH:mm:ss.SSS")}] SOCKET | \u001b[32mSND\u001b[37m \u001b[30m| ${call}`);
         }
         function sendMessage(primus, type, data = null) {
             data = data !== undefined ? { type: type, data: data} : { type: type};
