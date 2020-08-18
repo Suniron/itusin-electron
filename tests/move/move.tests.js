@@ -129,7 +129,10 @@ const authorizedGameMessage = [
 	"CurrentMapMessage",
 	"MapComplementaryInformationsDataMessage",
 	"BasicNoOperationMessage",
-	"BasicAckMessage"
+	"BasicAckMessage",
+	"SequenceNumberRequestMessage",
+	"BasicLatencyStatsRequestMessage"
+
 ];
 
 function connectionToGameServer(webSocketRequestModel, dofusAccount) {
@@ -155,7 +158,11 @@ function connectionToGameServer(webSocketRequestModel, dofusAccount) {
 				case "BasicNoOperationMessage": BasicNoOperationMessage(primus, payload, dofusAccount);
 					break;
 				case "BasicAckMessage": BasicAckMessage(primus, payload, dofusAccount);
-                    break;
+					break;
+				case "SequenceNumberRequestMessage": SequenceNumberRequestMessage(primus, payload);
+					break;
+				case "BasicLatencyStatsRequestMessage": BasicLatencyStatsRequestMessage(primus, payload);
+					break;
 			}
 		}
 	})
@@ -192,11 +199,12 @@ async function CurrentMapMessage(primus, payload, dofusAccount) {
 	sendMessage(primus, "MapInformationsRequestMessage", {mapId:dofusAccount.mapId})
 }
 
+var sequenceNumber = 0;
 var nbMapVisited = 0;
-var nbMapToVisit = 4;
+var nbMapToVisit = 100;
 var isFinished = false;
 
-const authorizedMaps = ["0,3", "0,2", "1,2", "1,3"];
+const authorizedMaps = ["0,2", "-1,2", "-1,1", "-1,0", "0,0", "0,-1", "1,-1", "2,-1", "2,0", "2,1", "3,1", "3,2", "2,2", "1,2"];
 
 var readyForGameMapMovement = false;
 var readyForGameMapMovementConfirm = false;
@@ -228,13 +236,33 @@ async function BasicNoOperationMessage(primus, payload, dofusAccount) {
 		await PathFindingService.initGrid();
 		await PathFindingService.fillPathGrid(dofusAccount.map);
 		switch (dofusAccount.mapCoord) {
-			case "0,3": dofusAccount.dir = "top";
+			case "0,2": dofusAccount.dir = "left";
 				break;
-			case "0,2": dofusAccount.dir = "right";
+			case "-1,2": dofusAccount.dir = "top";
 				break;
-			case "1,2": dofusAccount.dir = "bottom";
+			case "-1,1": dofusAccount.dir = "top";
 				break;
-			case "1,3": dofusAccount.dir = "left";
+			case "-1,0": dofusAccount.dir = "right";
+				break;
+			case "0,0": dofusAccount.dir = "top";
+				break;
+			case "0,-1": dofusAccount.dir = "right";
+				break;
+			case "1,-1": dofusAccount.dir = "right";
+				break;
+			case "2,-1": dofusAccount.dir = "bottom";
+				break;
+			case "2,0": dofusAccount.dir = "bottom";
+				break;
+			case "2,1": dofusAccount.dir = "right";
+				break;
+			case "3,1": dofusAccount.dir = "bottom";
+				break;
+			case "3,2": dofusAccount.dir = "left";
+				break;
+			case "2,2": dofusAccount.dir = "left";
+				break;
+			case "1,2": dofusAccount.dir = "left";
 				break;
 		}
 		console.log(`[${moment().format('HH:mm:ss.SSS')}] I'm on map ${dofusAccount.mapCoord}... go ${dofusAccount.dir} [${nbMapVisited}/${nbMapToVisit}]`)
@@ -258,8 +286,23 @@ async function BasicAckMessage(primus, payload, dofusAccount) {
 	if (readyForGameMapMovementConfirm) {
 		readyForGameMapMovementConfirm = false;
 		dofusAccount.timeout = await PathFindingService.computeDuraction(dofusAccount.keyMovements);
-		await new Promise(resolve => setTimeout(resolve, dofusAccount.timeout));
+		//await new Promise(resolve => setTimeout(resolve, dofusAccount.timeout));
 		sendMessage(primus, "GameMapMovementConfirmMessage");
 		readyForGameMapChange = true;
 	}
+}
+
+function SequenceNumberRequestMessage(primus, payload) {
+	sequenceNumber += 1;
+	sendMessage(primus, "SequenceNumberMessage", {
+		number: sequenceNumber
+	})
+}
+
+function BasicLatencyStatsRequestMessage(primus, payload) {
+	sendMessage(primus, "BasicLatencyStatsMessage", {
+		latency: 262,
+		sampleCount: 12,
+		max: 50
+	});
 }
