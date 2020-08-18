@@ -6,6 +6,7 @@ var moment = require("moment");
 var ContextService = require("../../src/services/context.service");
 var ConnectionService = require("../../src/services/connection.service");
 var MapService = require("../../src/services/map.service");
+var PathFindingService = require("../../src/services/pathfinding.service");
 
 /* Models */
 var DofusAccount = require("../../src/models/dofus-account");
@@ -126,7 +127,9 @@ const authorizedGameMessage = [
 	"CharactersListMessage",
 	"CharacterSelectedSuccessMessage",
 	"CurrentMapMessage",
-	"MapComplementaryInformationsDataMessage"
+	"MapComplementaryInformationsDataMessage",
+	"BasicNoOperationMessage",
+	"BasicAckMessage"
 ];
 
 function connectionToGameServer(webSocketRequestModel, dofusAccount) {
@@ -149,6 +152,10 @@ function connectionToGameServer(webSocketRequestModel, dofusAccount) {
 					break;
 				case "MapComplementaryInformationsDataMessage": MapComplementaryInformationsDataMessage(primus, payload, dofusAccount);
 					break;
+				case "BasicNoOperationMessage": BasicNoOperationMessage(primus, payload, dofusAccount);
+					break;
+				case "BasicAckMessage": BasicAckMessage(primus, payload, dofusAccount);
+                    break;
 			}
 		}
 	})
@@ -184,16 +191,75 @@ async function CurrentMapMessage(primus, payload, dofusAccount) {
 	dofusAccount.map = await MapService.resolveMap(payload.mapId);
 	sendMessage(primus, "MapInformationsRequestMessage", {mapId:dofusAccount.mapId})
 }
+
+var nbMapVisited = 0;
+var nbMapToVisit = 4;
+var isFinished = false;
+
+const authorizedMaps = ["0,3", "0,2", "1,2", "1,3"];
+
+var readyForGameMapMovement = false;
+var readyForGameMapMovementConfirm = false;
+var readyForGameMapChange = false;
+
 async function MapComplementaryInformationsDataMessage(primus, payload, dofusAccount) {
-	const character = payload.actors.find((a) => a.contextualId === dofusAccount.characterId);
-	if (character) {
-		dofusAccount.characterCellId = character.disposition.cellId;
+	if (authorizedMaps.includes(dofusAccount.mapCoord)) {
+		if (nbMapVisited === nbMapToVisit) {
+			isFinished = true;
+			return;
+		}
+		nbMapVisited++;
+		const character = payload.actors.find((a) => a.contextualId === dofusAccount.characterId);
+		if (character) {
+			dofusAccount.characterCellId = character.disposition.cellId;
+		}
+		readyForGameMapMovement = true;
+	} else {
+		console.log(`${dofusAccount.mapCoord} n'est pas compris dans le cas de vérification`);
 	}
+}
+async function BasicNoOperationMessage(primus, payload, dofusAccount) {
+	if (isFinished) {
+		console.log("Well Done !")
+	}
+	if (readyForGameMapMovement) {
+		readyForGameMapMovement = false;
+		await PathFindingService.constructMapPoints();
+		await PathFindingService.initGrid();
+		await PathFindingService.fillPathGrid(dofusAccount.map);
+		switch (dofusAccount.mapCoord) {
+			case "0,3": dofusAccount.dir = "top";
+				break;
+			case "0,2": dofusAccount.dir = "right";
+				break;
+			case "1,2": dofusAccount.dir = "bottom";
+				break;
+			case "1,3": dofusAccount.dir = "left";
+				break;
+		}
+		console.log(`[${moment().format('HH:mm:ss.SSS')}] I'm on map ${dofusAccount.mapCoord}... go ${dofusAccount.dir} [${nbMapVisited}/${nbMapToVisit}]`)
+		dofusAccount.targetCellId = await PathFindingService.getRandomCellId(dofusAccount);
+		dofusAccount.newMapId = await MapService.resolveNewMapId(dofusAccount.map, dofusAccount.dir);
+		dofusAccount.keyMovements = await PathFindingService.getPath(dofusAccount.characterCellId, dofusAccount.targetCellId, dofusAccount.occupiedCells, true, false);
+		readyForGameMapMovementConfirm = true;
+		await new Promise(resolve => setTimeout(resolve, 300));
+		sendMessage(primus, "GameMapMovementRequestMessage", {
+			keyMovements:PathFindingService.compressPath(dofusAccount.keyMovements), 
+			mapId:dofusAccount.mapId
+		});
+	}
+	if (readyForGameMapChange) {
+		readyForGameMapChange = false;
+		sendMessage(primus, "ChangeMapMessage", {mapId: dofusAccount.newMapId});
+	}
+}
 
-	console.log(dofusAccount.mapCoord);
-
-	//0,2 => right
-	//1,2 => bottom
-	//1,3 => left
-	//0,3 => top
+async function BasicAckMessage(primus, payload, dofusAccount) {
+	if (readyForGameMapMovementConfirm) {
+		readyForGameMapMovementConfirm = false;
+		dofusAccount.timeout = await PathFindingService.computeDuraction(dofusAccount.keyMovements);
+		await new Promise(resolve => setTimeout(resolve, dofusAccount.timeout));
+		sendMessage(primus, "GameMapMovementConfirmMessage");
+		readyForGameMapChange = true;
+	}
 }

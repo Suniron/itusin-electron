@@ -12,7 +12,7 @@ const PathFindingService = {
     // Where 43 is the height of a cell in our dofus version
     ELEVATION_TOLERANCE: 11.825,
 
-    WIDTH : 33 + 2,
+    WIDTH: 33 + 2,
     HEIGHT: 34 + 2,
 
     oldMovementSystem: null,
@@ -21,26 +21,26 @@ const PathFindingService = {
     grid: [],
     mapPointToCellId: {},
 
-    getMapPoint: (cellId) => {
+    getMapPoint(cellId) {
         var row = cellId % 14 - ~~(cellId / 28);
         var x = row + 19;
         var y = row + ~~(cellId / 14);
         return { x: x, y: y };
     },
 
-    getCellId: (x, y) => {
+    getCellId(x, y) {
         var cellId = PathFindingService.mapPointToCellId[x + '_' + y];
         return cellId;
     },
 
-    constructMapPoints: () => {
+    constructMapPoints() {
         for (var cellId = 0; cellId < 560; cellId++) {
             var coord = PathFindingService.getMapPoint(cellId);
             PathFindingService.mapPointToCellId[coord.x + '_' + coord.y] = cellId;
         }
     },
 
-    initGrid: () => {
+    initGrid() {
         for (var i = 0; i < PathFindingService.WIDTH; i += 1) {
             var row = [];
             for (var j = 0; j < PathFindingService.HEIGHT; j += 1) {
@@ -50,7 +50,7 @@ const PathFindingService = {
         }
     },
     
-    updateCellPath: (cell, cellPath) => {
+    updateCellPath(cell, cellPath) {
         if ((cell !== undefined) && (cell.l & 1)) {
             cellPath.floor = cell.f || 0;
             cellPath.zone  = cell.z || 0;
@@ -65,7 +65,7 @@ const PathFindingService = {
         }
     },
 
-    fillPathGrid: (map) => {
+    fillPathGrid(map) {
         // TODO: add whether a map uses the old system onto the map data
         // when it is generated on the server side
         // oldMovementSystem = map.usesOldMovementSystem;
@@ -83,13 +83,13 @@ const PathFindingService = {
         }
     },
 
-    updateCellPath2: (cellId, cell) => {
+    updateCellPath2(cellId, cell) {
         var cellCoordinate = PathFindingService.getMapPoint(cellId);
         var cellPath = PathFindingService.grid[cellCoordinate.x + 1][cellCoordinate.y + 1];
         PathFindingService.updateCellPath(cell, cellPath);
     },
 
-    areCommunicating: (c1, c2) => {
+    areCommunicating(c1, c2) {
         // Cells are compatible only if they either have the same floor height...
         if (c1.floor === c2.floor) {
             // Same height
@@ -105,12 +105,12 @@ const PathFindingService = {
         return false;
     },
 
-    canMoveDiagonallyTo: (c1, c2, c3, c4) => {
+    canMoveDiagonallyTo(c1, c2, c3, c4) {
         // Can move between c1 and c2 diagonally only if c1 and c2 are compatible and if c1 is compatible either with c3 or c4
         return PathFindingService.areCommunicating(c1, c2) && (PathFindingService.areCommunicating(c1, c3) || PathFindingService.areCommunicating(c1, c4));
     },
 
-    addCandidate: (c, w, di, dj, candidates, path) => {
+    addCandidate(c, w, di, dj, candidates, path) {
         var i = c.i;
         var j = c.j;
     
@@ -133,7 +133,7 @@ const PathFindingService = {
         }
     },
 
-    addCandidates: (path, di, dj, candidates, allowDiagonals) => {
+    addCandidates(path, di, dj, candidates, allowDiagonals) {
         var i = path.i;
         var j = path.j;
         var c = PathFindingService.grid[i][j];
@@ -189,7 +189,7 @@ const PathFindingService = {
      * that gets closer to destination if none.
      *
      */
-    getPath: (source, target, occupiedCells, allowDiagonals, stopNextToTarget) => {
+    getPath(source, target, occupiedCells, allowDiagonals, stopNextToTarget) {
         var c, candidate;
 
         allowDiagonals = allowDiagonals === undefined ? true : !!allowDiagonals;
@@ -437,7 +437,7 @@ const PathFindingService = {
      * @param  {number[]} path - an array of cellIds
      * @return {number[]} compressed path
      */
-    compressPath: (path) => {
+    compressPath(path) {
         var compressedPath = [];
         var prevCellId     = path[0];
         var prevDirection  = -1;
@@ -538,32 +538,32 @@ const PathFindingService = {
     };
     */
 
-    getRandomCellId: (account) => {
+    getRandomCellId(account) {
         let sourceCellId = account.characterCellId;
         let possibleCells = [];
         for (var j = 0; j < 559; j++) {
-            if (PathFindingService.checkChangeMapCell(account, j, account.dir) && j != sourceCellId) {
+            if (this.checkChangeMapCell(account, j, account.dir) && j != sourceCellId) {
                 possibleCells.push(j);
 			}
 		}
         return possibleCells[PathFindingService.randomIntFromInterval(0, possibleCells.length - 1)];
     },
 
-    checkChangeMapCell: (account, cellId, direction) => {
+    checkChangeMapCell(account, cellId, direction) {
         if (cellId >= 0 && cellId <= 559 && cellId != 13) { // 13 et 27 cellules instables
-            return (PathFindingService.getChangeMapFlag(account, cellId) == direction && PathFindingService.isWalkable(account, cellId));
+            return (this.getChangeMapFlag(account, cellId) == direction && PathFindingService.isWalkable(account, cellId));
         }
         else{
             return false;
         }
     },
 
-    CHANGE_MAP_MASK_RIGHT  :  1 |  2 | 128,
-    CHANGE_MAP_MASK_BOTTOM :  2 |  4 | 8,
-    CHANGE_MAP_MASK_LEFT   :  8 | 16 | 32,
-    CHANGE_MAP_MASK_TOP    : 32 | 64 | 128,
+    CHANGE_MAP_MASK_RIGHT :  1 |  2 | 128,
+    CHANGE_MAP_MASK_BOTTOM:  2 |  4 | 8,
+    CHANGE_MAP_MASK_LEFT  :  8 | 16 | 32,
+    CHANGE_MAP_MASK_TOP   : 32 | 64 | 128,
 
-    getChangeMapFlag: (account, cellId) => {
+    getChangeMapFlag(account, cellId) {
         var mapChangeData = account.map.cells[cellId].c || 0;
         if (mapChangeData === 0) { return {}; }
         var flags = {
@@ -579,12 +579,12 @@ const PathFindingService = {
         return null;
     },
     
-    isWalkable: (account, cellId, isFightMode = false) => {
+    isWalkable(account, cellId, isFightMode = false) {
         var mask = isFightMode ? 5 : 1;
         return (account.map.cells[cellId].l & mask) === 1;
     },
     
-    randomIntFromInterval: (min, max) => {
+    randomIntFromInterval(min, max) {
         return Math.floor(Math.random()*(max-min+1)+min);
     },
 
@@ -595,9 +595,8 @@ const PathFindingService = {
         walking: { linear: 480, horizontal: 510, vertical: 425, symbolId: 'AnimMarche' },
         slide:   { linear:  57, horizontal:  85, vertical:  50, symbolId: 'AnimStatique' }
     },
-    
 
-    computeDuraction: (path) => {
+    computeDuraction(path) {
         PathFindingService.constructCellCoordMap();
         var prevX;
         var prevY;
@@ -643,7 +642,7 @@ const PathFindingService = {
 	 * @return {Array} coordinates
 	 */
 	coordinates: [],
-	constructCellCoordMap: () => {
+	constructCellCoordMap() {
         PathFindingService.coordinates = [];
 		for (var i = 0; i < 560; i += 1) {
 			PathFindingService.coordinates.push(PathFindingService.getCellCoord(i));
@@ -667,7 +666,7 @@ const PathFindingService = {
 	 * @param {Number} cellId - Cell id, a number between 0 and 559
 	 * @return {Object} coordinates - Coordinates on scene { x: x, y: y }
 	 */
-	getCellCoord: (cellId) => {
+	getCellCoord(cellId) {
 		var x = cellId % 14;
 		var y = Math.floor(cellId / 14);
 		x += (y % 2) * 0.5;
