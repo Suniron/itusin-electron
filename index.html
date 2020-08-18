@@ -270,6 +270,7 @@
             const webSocketRequestModel = new WebSocketRequestModel(currentAccount);
             connectionToAuthServer(webSocketRequestModel);
         }
+    -->
         
         function connectionToAuthServer(webSocketRequestModel) {
             const socketURL = "https://proxyconnection.touch.dofus.com/primus/?STICKER=" + currentAccount.sessionId;
@@ -299,6 +300,8 @@
             primus.on("end", () => {})
             primus.open();
         }
+
+        <!---->
 
         function connectionToGameServer(webSocketRequestModel) {
             const socketURL = "https://proxyconnection.touch.dofus.com/primus/?STICKER=" + currentAccount.sessionId;

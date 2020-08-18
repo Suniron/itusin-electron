@@ -4,17 +4,18 @@
 	"description": "",
 	"main": "main.js",
 	"scripts": {
-		"start": "electron main.js"
+		"start": "electron main.js",
+		"test:connect": "electron tests/connect/connect.tests.js"
 	},
 	"author": "itusin",
 	"license": "MIT",
 	"devDependencies": {
+		"axios": "^0.19.2",
 		"electron-packager": "^15.0.0",
 		"electron-reload": "^1.5.0",
 		"electron-reloader": "^1.0.1"
 	},
 	"dependencies": {
-		"axios": "^0.19.2",
 		"cloudscraper": "^4.6.0",
 		"electron": "^9.2.0",
 		"engine.io": "^3.4.2",

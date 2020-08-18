@@ -5,6 +5,9 @@ module.exports = class DofusAccount {
     constructor(username = "", password = "", proxyUsername = "", proxyPassword = "", proxyHost = "", proxyPort = "") {
 		this.proxy = proxyUsername.length && proxyPassword.length && proxyHost.length && proxyPort.length ? "http://" + proxyUsername + ":" + proxyPassword + "@" + proxyHost + ":" + proxyPort : proxyHost.length && proxyPort.length ? "http://" + proxyHost + ":" + proxyPort : "";
 		
+		this.appVersion = "";
+		this.buildVersion = "";
+
 		this.token = "";
 		this.sessionId = "";
 

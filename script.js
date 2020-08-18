@@ -21,5 +21,4 @@ var WebSocketRequestModel = require("./src/models/web-socket-request-model");
 
 window.addEventListener('DOMContentLoaded', (event) => {
     RenderService.initializeView();
-    
 });
