@@ -6,7 +6,8 @@
 	"scripts": {
 		"start": "electron main.js",
 		"test:connect": "electron tests/connect/index.js",
-		"test:move": "electron tests/move/index.js"
+		"test:move": "electron tests/move/index.js",
+		"test:fight": "electron tests/fight/index.js"
 	},
 	"author": "itusin",
 	"license": "MIT",

@@ -46,6 +46,16 @@ module.exports = class DofusAccount {
 		this.keyMovements = [];
 		this.timeout = 0;
 
+		/* Fight Outside*/
+		this.groupMonsters = [];
+		this.monsterToAttackCellId = 0;
+		this.monsterGroupId = 0;
+
+		/* Fight inside */
+		this.monstersInFight = [];
+		this.acknowledgementActionId = 0;
+
+
 		/* Other */
 		this.emitter = new EventEmitter();
 		this.username = username;
