@@ -148,5 +148,6 @@ function openGameServer(primus, dofusAccount) {
 	send(primus, "connecting", {language: "fr", server: dofusAccount.server, client: "android", appVersion: dofusAccount.appVersion, buildVersion: dofusAccount.buildVersion});
 }
 function HelloGameMessage(primus, payload, dofusAccount) {
-	console.log("Well Done !")
+	console.log("Well Done !");
+	send(primus, "disconnecting", "CLIENT_CLOSING");
 }

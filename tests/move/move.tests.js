@@ -228,7 +228,8 @@ async function MapComplementaryInformationsDataMessage(primus, payload, dofusAcc
 }
 async function BasicNoOperationMessage(primus, payload, dofusAccount) {
 	if (isFinished) {
-		console.log("Well Done !")
+		console.log("Well Done !");
+		send(primus, "disconnecting", "CLIENT_CLOSING");
 	}
 	if (readyForGameMapMovement) {
 		readyForGameMapMovement = false;
@@ -281,7 +282,6 @@ async function BasicNoOperationMessage(primus, payload, dofusAccount) {
 		sendMessage(primus, "ChangeMapMessage", {mapId: dofusAccount.newMapId});
 	}
 }
-
 async function BasicAckMessage(primus, payload, dofusAccount) {
 	if (readyForGameMapMovementConfirm) {
 		readyForGameMapMovementConfirm = false;
@@ -291,14 +291,12 @@ async function BasicAckMessage(primus, payload, dofusAccount) {
 		readyForGameMapChange = true;
 	}
 }
-
 function SequenceNumberRequestMessage(primus, payload) {
 	sequenceNumber += 1;
 	sendMessage(primus, "SequenceNumberMessage", {
 		number: sequenceNumber
 	})
 }
-
 function BasicLatencyStatsRequestMessage(primus, payload) {
 	sendMessage(primus, "BasicLatencyStatsMessage", {
 		latency: 262,

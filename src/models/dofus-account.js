@@ -50,11 +50,22 @@ module.exports = class DofusAccount {
 		this.groupMonsters = [];
 		this.monsterToAttackCellId = 0;
 		this.monsterGroupId = 0;
+		this.monsterNumber = 0;
 
 		/* Fight inside */
+
+		this.positionsForChallengers = [];
+
+		this.currentPA = 6;
+		this.currentPM = 3;
+		this.currentPO = 1;
+
+		this.playersInFight = [];
 		this.monstersInFight = [];
+		this.monstersICanAttack = [];
 		this.acknowledgementActionId = 0;
 
+		this.availableCellsToMove = [];
 
 		/* Other */
 		this.emitter = new EventEmitter();
@@ -81,5 +92,23 @@ module.exports = class DofusAccount {
 		this.readyForFight = false;
 		this.nbInvocations = 0;
 
-    }
+	}
+	
+	setPA(value) {
+		this.currentPA = value;
+	}
+
+	removePA(value) {
+		console.log("removePA");
+		this.currentPA = this.currentPA - value;
+	}
+
+	setPM(value) {
+		this.currentPM = value;
+	}
+
+	removePM(value) {
+		console.log("removePM");
+		this.currentPM = this.currentPM - value;
+	}
 }

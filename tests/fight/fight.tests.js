@@ -7,7 +7,7 @@ var ContextService = require("../../src/services/context.service");
 var ConnectionService = require("../../src/services/connection.service");
 var MapService = require("../../src/services/map.service");
 var PathFindingService = require("../../src/services/pathfinding.service");
-var FigthService = require("../");
+var FigthService = require("../../src/services/fight.service");
 
 /* Models */
 var DofusAccount = require("../../src/models/dofus-account");
@@ -15,6 +15,8 @@ var HaapiKeysRequestModel = require("../../src/models/haapi-keys-request-model")
 var ApiIdRequestModel = require("../../src/models/api-id-request-model");
 var TokenRequestModel = require("../../src/models/token-request-model");
 var WebSocketRequestModel = require("../../src/models/web-socket-request-model");
+
+var packetsToSend = [];
 
 window.addEventListener("DOMContentLoaded", async (event) => {
 	console.log("Demande de connexion...");
@@ -52,7 +54,6 @@ function sendMessage(primus, type, data = null) {
 	data = data !== undefined ? { type: type, data: data} : { type: type};
 	send(primus, "sendMessage", data);
 }
-
 const authorizedAuthMessage = [
 	"ConnectionFailedMessage",
 	"HelloConnectMessage",
@@ -60,7 +61,6 @@ const authorizedAuthMessage = [
 	"SelectedServerRefusedMessage",
 	"SelectedServerDataMessage"
 ];
-
 function connectionToAuthServer(webSocketRequestModel, dofusAccount) {
 	const socketURL = "https://proxyconnection.touch.dofus.com/primus/?STICKER=" + dofusAccount.sessionId;
 	primus = new Primus(socketURL);
@@ -87,7 +87,6 @@ function connectionToAuthServer(webSocketRequestModel, dofusAccount) {
 	primus.on("end", () => {})
 	primus.open();
 }
-
 /* Authentication */
 function openLoginServer(primus, dofusAccount) {
 	send(primus, "connecting", {language: "fr", server: "login", client: "android", appVersion: dofusAccount.appVersion, buildVersion: dofusAccount.buildVersion});
@@ -107,6 +106,7 @@ async function SelectedServerRefusedMessage(primus, payload) {
 	if (payload.serverStatus === 4) {
 		console.log("Serveur en maintenance");
 	} else {
+		console.log(payload);
 		console.log("SelectedServerRefusedMessage");
 	}
 }
@@ -121,7 +121,6 @@ function SelectedServerDataMessage(primus, payload, dofusAccount) {
 	const webSocketRequestModel = new WebSocketRequestModel();
 	connectionToGameServer(webSocketRequestModel, dofusAccount);
 }
-
 const authorizedGameMessage = [
 	"HelloGameMessage",
 	"TrustStatusMessage",
@@ -136,9 +135,17 @@ const authorizedGameMessage = [
 	"GameEntitiesDispositionMessage",
 	"SequenceEndMessage",
 	"GameFightTurnReadyRequestMessage",
-	"GameFightTurnStartMessage"
+	"GameFightTurnStartMessage",
+	"GameActionFightSpellCastMessage",
+	"GameActionFightNoSpellCastMessage",
+	"GameMapMovementMessage",
+	"GameActionFightDeathMessage",
+	"GameFightEndMessage",
+	"CharacterSelectedForceMessage",
+	"FighterStatsListMessage",
+	"CharacterStatsListMessage",
+	"GameFightPlacementPossiblePositionsMessage"
 ];
-
 function connectionToGameServer(webSocketRequestModel, dofusAccount) {
 	const socketURL = "https://proxyconnection.touch.dofus.com/primus/?STICKER=" + dofusAccount.sessionId;
 	primus = new Primus(socketURL);
@@ -175,6 +182,24 @@ function connectionToGameServer(webSocketRequestModel, dofusAccount) {
 					break;
 				case "GameFightTurnStartMessage": GameFightTurnStartMessage(primus, payload, dofusAccount);
 					break;
+				case "GameActionFightSpellCastMessage": GameActionFightSpellCastMessage(primus, payload, dofusAccount);
+					break;
+				case "GameActionFightNoSpellCastMessage": GameActionFightNoSpellCastMessage(primus, payload);
+					break;
+				case "GameMapMovementMessage": GameMapMovementMessage(primus, payload, dofusAccount);
+					break;
+				case "GameActionFightDeathMessage": GameActionFightDeathMessage(primus, payload, dofusAccount);
+					break;
+				case "GameFightEndMessage": GameFightEndMessage(primus, payload);
+					break;
+				case "CharacterSelectedForceMessage": CharacterSelectedForceMessage(primus, payload, dofusAccount);
+					break;
+				case "FighterStatsListMessage": FighterStatsListMessage(primus, payload, dofusAccount);
+					break;
+				case "CharacterStatsListMessage": CharacterStatsListMessage(primus, payload, dofusAccount);
+					break;
+				case "GameFightPlacementPossiblePositionsMessage": GameFightPlacementPossiblePositionsMessage(primus, payload, dofusAccount);
+					break;
 			}
 		}
 	})
@@ -183,7 +208,6 @@ function connectionToGameServer(webSocketRequestModel, dofusAccount) {
 	primus.on("end", () => {})
 	primus.open();
 }
-
 /* Game */
 function openGameServer(primus, dofusAccount) {
 	send(primus, "connecting", {language: "fr", server: dofusAccount.server, client: "android", appVersion: dofusAccount.appVersion, buildVersion: dofusAccount.buildVersion});
@@ -201,7 +225,6 @@ function CharacterSelectedSuccessMessage(primus, payload, dofusAccount) {
 	dofusAccount.characterId = payload.infos.id;
 	dofusAccount.level = payload.infos.level;
 	dofusAccount.characterName = payload.infos.name;
-	console.log(`Sélection du personnage ${dofusAccount.characterName} (Niveau ${dofusAccount.level})`);
 	sendMessage(primus, "GameContextCreateRequestMessage");
 }
 async function CurrentMapMessage(primus, payload, dofusAccount) {
@@ -210,86 +233,164 @@ async function CurrentMapMessage(primus, payload, dofusAccount) {
 	dofusAccount.map = await MapService.resolveMap(payload.mapId);
 	sendMessage(primus, "MapInformationsRequestMessage", {mapId:dofusAccount.mapId})
 }
+var readyForGameMapMovementRequestMessage = false;
+var readyForGameMapMovementConfirmMessage = false;
+var readyForChangeMapMessage = false;
+
+var readyForGameMapMovementFightRequestMessage = false;
+var readyForGameMapMovementFightConfirmMessage = false;
+var readyForGameRolePlayAttackMonsterRequestMessage = false;
+
+var readyForGameFightPlacementPositionRequestMessage = false;
+var GameFightPlacementPositionDone = false;
+
+var readyForGameFightTurn = false;
+var readyForGameMove = false;
+var readyForGameAction = false;
+var readyForGameFightTurnFinishMessage = false;
 
 var sequenceNumber = 0;
+var gameFightStarted = false;
 var nbFightDone = 0;
 var nbFightToDo = 1;
-var isFinished = false;
-
-const authorizedMaps = ["2,0"];
-
-var readyForGameFight = false;
-var gameFightStarted = false;
-
-
-var readyForGameMapMovementConfirm = false;
-var readyForGameMapChange = false;
 
 var MIN_MONSTER = 1;
 var MAX_MONSTER = 8;
+var SPELL_ID = 7677; // pied du sacrieur
+const authorizedMaps = ["-1,-14", "0,-14"];
+const authorizedMoveMaps = ["-1,-14"];
+const authorizedFightMaps = ["0,-14"];
 
 async function MapComplementaryInformationsDataMessage(primus, payload, dofusAccount) {
+	console.log(dofusAccount.mapCoord);
+	if (nbFightDone === nbFightToDo) {
+		return;
+	}
 	if (authorizedMaps.includes(dofusAccount.mapCoord)) {
-		if (nbFightDone === nbFightToDo) {
-			isFinished = true;
-			return;
-		}
-		//nbFightDone++;
 		const character = payload.actors.find((a) => a.contextualId === dofusAccount.characterId);
 		if (character) {
 			dofusAccount.characterCellId = character.disposition.cellId;
 		}
-		const monsters = payload.actors.filter(actor => actor.contextualId < 0 && !actor.npcId);
-		for (let monster of monsters) {
-			console.log(`${monster.staticInfos.mainCreatureLightInfos.staticInfos.nameId}, ${monster.staticInfos.underlings.length + 1} Monster(s) id:${monster.contextualId}`);
+		if (authorizedMoveMaps.includes(dofusAccount.mapCoord)) {
+			// set move packets for current map coord
+			setMovePacketsforCurrentCoord(dofusAccount);
 		}
-		dofusAccount.groupMonsters = monsters.filter(monster => monster.staticInfos.underlings.length >= MIN_MONSTER - 1 && monster.staticInfos.underlings.length <= MAX_MONSTER - 1);
-		console.log(`${dofusAccount.groupMonsters.length} groupes éligible(s)`);
-		readyForGameFight = true;
+		if (authorizedFightMaps.includes(dofusAccount.mapCoord) && !gameFightStarted) {
+			const monsters = payload.actors.filter(actor => actor.contextualId < 0 && !actor.npcId);
+			for (let monster of monsters) {
+				console.log(`${monster.staticInfos.mainCreatureLightInfos.staticInfos.nameId}, ${monster.staticInfos.underlings.length + 1} Monster(s) id:${monster.contextualId}`);
+			}
+			dofusAccount.groupMonsters = monsters.filter(monster => monster.staticInfos.underlings.length >= MIN_MONSTER - 1 && monster.staticInfos.underlings.length <= MAX_MONSTER - 1);
+			console.log(`${dofusAccount.groupMonsters.length} groupes éligible(s)`);
+			// set fight packets for current map coord
+			setFightPacketsforCurrentCoord(dofusAccount);
+		}
 	} else {
 		console.log(`${dofusAccount.mapCoord} n'est pas compris dans le cas de vérification`);
 	}
 }
 async function BasicNoOperationMessage(primus, payload, dofusAccount) {
-	if (isFinished) {
-		console.log("Well Done !")
+	if (nbFightDone === nbFightToDo) {
+		console.log("Well Done !");
+		send(primus, "disconnecting", "CLIENT_CLOSING");
+		return;
 	}
-	if (readyForGameFight) {
-		readyForGameFight = false;
-		if (dofusAccount.groupMonsters.length) {
-			const groupToAttack = dofusAccount.groupMonsters[0];
-			console.log(`Attaque ${groupToAttack.staticInfos.mainCreatureLightInfos.staticInfos.nameId}, ${groupToAttack.staticInfos.underlings.length + 1} Monster(s) id:${groupToAttack.contextualId}`);
-		
-			dofusAccount.monsterToAttackCellId = groupToAttack.disposition.cellId;
-			dofusAccount.monsterGroupId = groupToAttack.contextualId;
-
-			await PathFindingService.constructMapPoints();
-			await PathFindingService.initGrid();
-			await PathFindingService.fillPathGrid(dofusAccount.map);
-			console.log('Je suis sur la cellId', dofusAccount.characterCellId);
-			console.log('Le monstre est sur la cellId', dofusAccount.monsterToAttackCellId);
-
-			dofusAccount.keyMovements = await PathFindingService.getPath(dofusAccount.characterCellId, dofusAccount.monsterToAttackCellId, dofusAccount.occupiedCells, true, false);
-			console.log(dofusAccount.keyMovements);
-			if (dofusAccount.keyMovements.length > 1) {
-				sendMessage(primus, "GameMapMovementRequestMessage", {keyMovements:PathFindingService.compressPath(dofusAccount.keyMovements), mapId:dofusAccount.mapId});
-				//dofusAccount.timeout = await PathFindingService.computeDuraction(dofusAccount.keyMovements);
-				//await new Promise(resolve => setTimeout(resolve, dofusAccount.timeout));
-				sendMessage(primus, "GameMapMovementConfirmMessage", null);
+	// Move
+	if (readyForChangeMapMessage) {
+		readyForChangeMapMessage = false;
+		var packet = packetsToSend.shift();
+		sendMessage(primus, packet.call, packet.data);
+	}
+	if (readyForGameMapMovementConfirmMessage) {
+		readyForGameMapMovementConfirmMessage = false;
+		var packet = packetsToSend.shift();
+		sendMessage(primus, packet.call, packet.data);
+		packetsToSend.push({
+			type: "sendMessage",
+			call: "ChangeMapMessage",
+			data: {
+				mapId: dofusAccount.newMapId
 			}
-			//await new Promise(resolve => setTimeout(resolve, 2000));
-			sendMessage(primus, "GameRolePlayAttackMonsterRequestMessage", {monsterGroupId: dofusAccount.monsterGroupId});
+		});
+		readyForChangeMapMessage = true;
+	}
+	if (readyForGameMapMovementRequestMessage) {
+		readyForGameMapMovementRequestMessage = false;
+		var packet = packetsToSend.shift();
+		sendMessage(primus, packet.call, packet.data);
+		packetsToSend.push({
+			type: "sendMessage",
+			call: "GameMapMovementConfirmMessage",
+			data: null
+		});
+		readyForGameMapMovementConfirmMessage = true;
+	}
+	// Fight
+	if (readyForGameRolePlayAttackMonsterRequestMessage) {
+		readyForGameRolePlayAttackMonsterRequestMessage = false;
+		var packet = packetsToSend.shift();
+		sendMessage(primus, packet.call, packet.data);
+	}
+	if (readyForGameMapMovementFightConfirmMessage) {
+		readyForGameMapMovementFightConfirmMessage = false;
+		var packet = packetsToSend.shift();
+		sendMessage(primus, packet.call, packet.data);
+		packetsToSend.push({
+			type: "sendMessage",
+			call: "GameRolePlayAttackMonsterRequestMessage",
+			data: {
+				monsterGroupId: dofusAccount.monsterGroupId
+			}
+		});
+		readyForGameRolePlayAttackMonsterRequestMessage = true;
+	}
+	if (readyForGameMapMovementFightRequestMessage) {
+		readyForGameMapMovementFightRequestMessage = false;
+		var packet = packetsToSend.shift();
+		sendMessage(primus, packet.call, packet.data);
+		packetsToSend.push({
+			type: "sendMessage",
+			call: "GameMapMovementConfirmMessage",
+			data: null
+		});
+		readyForGameMapMovementFightConfirmMessage = true;
+	}
+
+	// During fight
+	if (readyForGameFightTurn) {
+		readyForGameFightTurn = false;
+		FigthService.resolveDistanceFrom(dofusAccount.monstersInFight, dofusAccount.characterCellId);
+		FigthService.orderByDistanceAsc(dofusAccount.monstersInFight);
+		var rowPair = Math.floor(dofusAccount.characterCellId/14) % 2 === 0;
+		if (rowPair && 
+			(
+				(dofusAccount.monstersInFight[0].x === -1 && dofusAccount.monstersInFight[0].y === -1)
+				|| (dofusAccount.monstersInFight[0].x === 0 && dofusAccount.monstersInFight[0].y === -1)
+				|| (dofusAccount.monstersInFight[0].x === -1 && dofusAccount.monstersInFight[0].y === 1)
+				|| (dofusAccount.monstersInFight[0].x === 0 && dofusAccount.monstersInFight[0].y === 1)
+			) || !rowPair && 
+			(
+				(dofusAccount.monstersInFight[0].x === 0 && dofusAccount.monstersInFight[0].y === -1)
+				|| (dofusAccount.monstersInFight[0].x === 1 && dofusAccount.monstersInFight[0].y === -1)
+				|| (dofusAccount.monstersInFight[0].x === 0 && dofusAccount.monstersInFight[0].y === 1)
+				|| (dofusAccount.monstersInFight[0].x === 1 && dofusAccount.monstersInFight[0].y === 1)
+			)
+		) {
+			readyForGameAction = true;
+		} else {
+			readyForGameMove = true;
 		}
+	}
+	if (readyForGameAction) {
+		readyForGameAction = false;
+		gameAction(primus, dofusAccount);
+	}
+	if (readyForGameMove) {
+		readyForGameMove = false;
+		gameMove(primus, dofusAccount);
 	}
 }
 async function BasicAckMessage(primus, payload, dofusAccount) {
-	if (readyForGameMapMovementConfirm) {
-		readyForGameMapMovementConfirm = false;
-		dofusAccount.timeout = await PathFindingService.computeDuraction(dofusAccount.keyMovements);
-		//await new Promise(resolve => setTimeout(resolve, dofusAccount.timeout));
-		sendMessage(primus, "GameMapMovementConfirmMessage");
-		readyForGameMapChange = true;
-	}
 }
 function SequenceNumberRequestMessage(primus, payload) {
 	sequenceNumber += 1;
@@ -304,6 +405,13 @@ function BasicLatencyStatsRequestMessage(primus, payload) {
 		max: 50
 	});
 }
+function SequenceEndMessage(primus, payload, dofusAccount) {
+	dofusAccount.acknowledgementActionId = payload.actionId;
+	sendMessage(primus, "GameActionAcknowledgementMessage", {valid: true, actionId: dofusAccount.acknowledgementActionId});
+	if (payload.authorId === dofusAccount.characterId) {
+		sendMessage(primus, "GameFightTurnFinishMessage");
+	}
+}
 async function GameEntitiesDispositionMessage(primus, payload, dofusAccount) {
 	if (!gameFightStarted) {
 		gameFightStarted = true;
@@ -314,47 +422,180 @@ async function GameEntitiesDispositionMessage(primus, payload, dofusAccount) {
 	if (character) {
 		dofusAccount.characterCellId = character.cellId;
 	}
+	dofusAccount.playersInFight = payload.dispositions.filter(disposition => disposition.id !== dofusAccount.characterId && disposition.id > 0);
 	dofusAccount.monstersInFight = payload.dispositions.filter(disposition => disposition.id !== dofusAccount.characterId && disposition.id < 0);
-}
-function SequenceEndMessage(primus, payload, dofusAccount) {
-	dofusAccount.acknowledgementActionId = payload.actionId;
-	sendMessage(primus, "GameActionAcknowledgementMessage", {valid: true, actionId: dofusAccount.acknowledgementActionId});
-	if (payload.authorId === dofusAccount.characterId) {
-		sendMessage(primus, "GameFightTurnFinishMessage");
+	if (dofusAccount.monstersInFight.length) {
+		readyForGameFightPlacementPositionRequestMessage = true;
 	}
 }
 function GameFightTurnReadyRequestMessage(primus, payload) {
 	sendMessage(primus, "GameFightTurnReadyMessage", {isReady: true});
 }
 async function GameFightTurnStartMessage(primus, payload, dofusAccount) {
-	sendMessage(primus, 'GameActionAcknowledgementMessage', {valid: true});
+	sendMessage(primus, "GameActionAcknowledgementMessage", {valid: true});
 	if (payload.id === dofusAccount.characterId) {
-		console.log('Début de tour')
-		console.log(`Je suis sur la cellId ${dofusAccount.characterCellId}`)
-		if (dofusAccount.monstersInFight.length) {
-			FigthService.resolveDistanceFrom(dofusAccount.monstersInFight, dofusAccount.characterCellId);
-			FigthService.orderByDistanceAsc(dofusAccount.monstersInFight);
+		console.log(`Début de tour, Je suis sur la cellId ${dofusAccount.characterCellId}`);
+		readyForGameFightTurn = true;
+	}
+}
+async function GameActionFightSpellCastMessage(primus, payload, dofusAccount) {
+	if (payload.sourceId === dofusAccount.characterId) {
+		console.log(`Le sort ${SPELL_ID}  à été lancé`);
+		gameAction(primus, dofusAccount);
+	}
+}
+function GameActionFightNoSpellCastMessage(primus, payload) {
+}
+async function GameMapMovementMessage(primus, payload, dofusAccount) {
+	if (gameFightStarted && dofusAccount.characterId === payload.actorId) {
+		dofusAccount.characterCellId = payload.keyMovements[payload.keyMovements.length - 1];
+		gameMove(primus, dofusAccount);
+	} else if (gameFightStarted) {
+		const player = dofusAccount.playersInFight.find(player => player.id === payload.actorId);
+		if (player) player.cellId = payload.keyMovements[payload.keyMovements.length - 1];
+		const monster = dofusAccount.monstersInFight.find(monster => monster.id === payload.actorId);
+		if (monster) monster.cellId = payload.keyMovements[payload.keyMovements.length - 1];
+	}
+}
+function GameActionFightDeathMessage(primus, payload, dofusAccount) {
+	console.log(`${payload.targetId} is Death :)`);
+	dofusAccount.monstersInFight = dofusAccount.monstersInFight.filter(monster => monster.id !== payload.targetId);
+}
+function GameFightEndMessage(primus, payload) {
+	console.log(`Combat terminé en ${Math.ceil(payload.duration/1000)} secondes.`)
+	gameFightStarted = false;
+	nbFightDone++;
+}
+function CharacterSelectedForceMessage(primus, payload, dofusAccount) {
+	gameFightStarted = true;
+	dofusAccount.characterId = payload.id;
+	sendMessage(primus, "CharacterSelectedForceReadyMessage");
+}
+function FighterStatsListMessage(primus, payload, dofusAccount) {
+	dofusAccount.currentPA = payload.stats.actionPointsCurrent + payload.stats.additionnalPoints;
+	dofusAccount.currentPM = payload.stats.movementPointsCurrent;
+}
+function CharacterStatsListMessage(primus, payload, dofusAccount) {
+	dofusAccount.currentPA = payload.stats.actionPointsCurrent + payload.stats.additionnalPoints;
+	dofusAccount.currentPM = payload.stats.movementPointsCurrent;
+}
+function GameFightPlacementPossiblePositionsMessage(primus, payload, dofusAccount) {
+	dofusAccount.positionsForChallengers = payload.positionsForChallengers.map(position => new Object({cellId: position}));
+}
+async function setMovePacketsforCurrentCoord(dofusAccount) {
+	await PathFindingService.constructMapPoints();
+	await PathFindingService.initGrid();
+	await PathFindingService.fillPathGrid(dofusAccount.map);
+	switch (dofusAccount.mapCoord) {
+		case "-1,-14":
+			dofusAccount.dir = "left";
+			break;
+	}
+	dofusAccount.targetCellId = await PathFindingService.getRandomCellId(dofusAccount);
+	dofusAccount.newMapId = await MapService.resolveNewMapId(dofusAccount.map, dofusAccount.dir);
+	dofusAccount.keyMovements = await PathFindingService.getPath(dofusAccount.characterCellId, dofusAccount.targetCellId, dofusAccount.occupiedCells, true, false);
+	packetsToSend.push({
+		type: "sendMessage",
+		call: "GameMapMovementRequestMessage",
+		data: {
+			keyMovements:PathFindingService.compressPath(dofusAccount.keyMovements), 
+			mapId:dofusAccount.mapId
 		}
-		console.log(dofusAccount.monsterInFight)
-		console.log(dofusAccount.monsterInFight[0])
-		/*
-		if (
-			(dofusAccount.monsterInFight[0].x === -1 && dofusAccount.monsterInFight[0].y === -1)
-			|| (dofusAccount.monsterInFight[0].x === 0 && dofusAccount.monsterInFight[0].y === -1)
-			|| (dofusAccount.monsterInFight[0].x === 1 && dofusAccount.monsterInFight[0].y === -1)
+	});
+	readyForGameMapMovementRequestMessage = true;
+}
+async function setFightPacketsforCurrentCoord(dofusAccount) {
+	if (dofusAccount.groupMonsters.length) {
+		await PathFindingService.constructMapPoints();
+		await PathFindingService.initGrid();
+		await PathFindingService.fillPathGrid(dofusAccount.map);
 
-			|| (dofusAccount.monsterInFight[0].x === -1 && dofusAccount.monsterInFight[0].y === 1)
-			|| (dofusAccount.monsterInFight[0].x === 0 && dofusAccount.monsterInFight[0].y === 1)
-			|| (dofusAccount.monsterInFight[0].x === 1 && dofusAccount.monsterInFight[0].y === 1)
-		) {
-			console.log(`Je lance le sors sur la cellId ${dofusAccount.monsterInFight[0].cellId}`);
-			sendMessage(primus, 'GameActionFightCastRequestMessage', {spellId: spellId, cellId: dofusAccount.monsterInFight[0].cellId});
-			await new Promise(resolve => setTimeout(resolve, 1000));
-			sendMessage(primus, 'GameActionFightCastRequestMessage', {spellId: spellId, cellId: dofusAccount.monsterInFight[0].cellId});
+		const groupToAttack = dofusAccount.groupMonsters[0];
+		console.log(`Attaque ${groupToAttack.staticInfos.mainCreatureLightInfos.staticInfos.nameId}, ${groupToAttack.staticInfos.underlings.length + 1} Monster(s) id:${groupToAttack.contextualId}`);
+		dofusAccount.monsterNumber = groupToAttack.staticInfos.underlings.length + 1;
+
+		dofusAccount.monsterToAttackCellId = groupToAttack.disposition.cellId;
+		dofusAccount.monsterGroupId = groupToAttack.contextualId;
+
+		console.log('Je suis sur la cellId', dofusAccount.characterCellId);
+		console.log('Le monstre est sur la cellId', dofusAccount.monsterToAttackCellId);
+
+		if (dofusAccount.characterCellId !== dofusAccount.monsterToAttackCellId) {
+			dofusAccount.keyMovements = await PathFindingService.getPath(dofusAccount.characterCellId, dofusAccount.monsterToAttackCellId, dofusAccount.occupiedCells, true, false);
+			packetsToSend.push({
+				type: "sendMessage",
+				call: "GameMapMovementRequestMessage",
+				data: {
+					keyMovements:PathFindingService.compressPath(dofusAccount.keyMovements), 
+					mapId:dofusAccount.mapId
+				}
+			});
+			readyForGameMapMovementFightRequestMessage = true;
 		} else {
-			sendMessage(primus, 'GameFightTurnFinishMessage');
+			packetsToSend.push({
+				type: "sendMessage",
+				call: "GameRolePlayAttackMonsterRequestMessage",
+				data: {
+					monsterGroupId: dofusAccount.monsterGroupId
+				}
+			});
+			readyForGameRolePlayAttackMonsterRequestMessage = true;
 		}
-
-		*/
+	}
+}
+async function gameAction(primus, dofusAccount) {
+	console.log(`gameAction ${dofusAccount.currentPA} PA`);
+	if (dofusAccount.currentPA < 4) {
+		console.log("plus de PA dispo, fin de tour");
+		dofusAccount.setPA(6);
+		dofusAccount.setPM(3);
+		sendMessage(primus, "GameFightTurnFinishMessage");
+		return;
+	}
+	var rowPair = Math.floor(dofusAccount.characterCellId/14) % 2 === 0;
+	if (
+		rowPair && 
+		(
+			(dofusAccount.monstersInFight[0].x === -1 && dofusAccount.monstersInFight[0].y === -1)
+			|| (dofusAccount.monstersInFight[0].x === 0 && dofusAccount.monstersInFight[0].y === -1)
+			|| (dofusAccount.monstersInFight[0].x === -1 && dofusAccount.monstersInFight[0].y === 1)
+			|| (dofusAccount.monstersInFight[0].x === 0 && dofusAccount.monstersInFight[0].y === 1)
+		) || !rowPair && 
+		(
+			(dofusAccount.monstersInFight[0].x === 0 && dofusAccount.monstersInFight[0].y === -1)
+			|| (dofusAccount.monstersInFight[0].x === 1 && dofusAccount.monstersInFight[0].y === -1)
+			|| (dofusAccount.monstersInFight[0].x === 0 && dofusAccount.monstersInFight[0].y === 1)
+			|| (dofusAccount.monstersInFight[0].x === 1 && dofusAccount.monstersInFight[0].y === 1)
+		)
+	) {
+		sendMessage(primus, "GameActionFightCastRequestMessage", {spellId: SPELL_ID, cellId: dofusAccount.characterCellId});
+		dofusAccount.removePA(4);
+	} else {
+		sendMessage(primus, "GameFightTurnFinishMessage");
+	}
+}
+async function gameMove(primus, dofusAccount) {
+	console.log(`gameMove ${dofusAccount.currentPM} PM`);
+	if (dofusAccount.currentPM === 0) {
+		console.log("plus de PM dispo, on essaye d'attaquer");
+		gameAction(primus, dofusAccount);
+	} else {
+		console.log("Je me déplace de 1pm");
+		var rowPair = Math.floor(dofusAccount.characterCellId/14) % 2 === 0;
+		dofusAccount.availableCellsToMove = FigthService.getAvailableCellsToMove(rowPair, dofusAccount);
+		for (var player in dofusAccount.playersInFight) {
+			dofusAccount.availableCellsToMove = dofusAccount.availableCellsToMove.filter(cell => cell.cellId !== player.cellId)
+		}
+		for (var monster in dofusAccount.monstersInFight) {
+			dofusAccount.availableCellsToMove = dofusAccount.availableCellsToMove.filter(cell => cell.cellId !== monster.cellId)
+		}
+		FigthService.resolveDistanceFrom(dofusAccount.availableCellsToMove, dofusAccount.monstersInFight[0].cellId);
+		FigthService.orderByDistanceAsc(dofusAccount.availableCellsToMove);
+		await PathFindingService.constructMapPoints();
+		await PathFindingService.initGrid();
+		await PathFindingService.fillPathGrid(dofusAccount.map);
+		dofusAccount.keyMovements = await PathFindingService.getPath(dofusAccount.characterCellId, dofusAccount.availableCellsToMove[0].cellId, dofusAccount.occupiedCells, false, false);
+		sendMessage(primus, "GameMapMovementRequestMessage", {keyMovements:dofusAccount.keyMovements, mapId:dofusAccount.mapId});
+		dofusAccount.removePM(1);
 	}
 }

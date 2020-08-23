@@ -1,3 +1,5 @@
+const PathFindingService = require("./pathfinding.service");
+
 const FigthService = {
     resolveDistanceFrom: (elements, sourceCellId) => {
         for (let element of elements) {
@@ -47,6 +49,31 @@ const FigthService = {
         if (a.distance > b.distance) return 1;
         if (b.distance > a.distance) return -1;
         return 0;
+    },
+    cellsDiffRowPair: [-14,-13,14,15],
+    cellsDiffRowOdd: [-15,-14,13,14],
+    getAvailableCellsToMove: (rowPair, dofusAccount) => {
+        var x = dofusAccount.characterCellId;
+        var cells = [];
+        if (rowPair) {
+            for (var diff of FigthService.cellsDiffRowPair) {
+                cells.push(parseInt(x) + diff);
+            }
+        } else {
+            for (var diff of FigthService.cellsDiffRowOdd) {
+                cells.push(parseInt(x) + diff);
+            }
+        }
+        var walkableCells = [];
+        for (var cell of cells) {
+            if (PathFindingService.isWalkable(dofusAccount, cell, true)) {
+                walkableCells.push({
+                    cellId: cell,
+                    distance: 0
+                });
+            }
+        }
+        return walkableCells;
     }
 }
 
