@@ -1,5 +1,6 @@
 var { EventEmitter } = require("events");
 var Script = require("./script");
+var Primus = require("../../src/libs/primus.js");
 
 module.exports = class DofusAccount {
     constructor(username = "", password = "", proxyUsername = "", proxyPassword = "", proxyHost = "", proxyPort = "") {
@@ -10,6 +11,7 @@ module.exports = class DofusAccount {
 
 		this.token = "";
 		this.sessionId = "";
+		this.world = false;
 
 		this.connected = false;
 		this.importScriptReady = false;
@@ -91,6 +93,7 @@ module.exports = class DofusAccount {
 		this.acknowledgementActionId = 0;
 		this.readyForFight = false;
 		this.nbInvocations = 0;
+		this.primus = new Primus();
 
 	}
 	
@@ -110,5 +113,8 @@ module.exports = class DofusAccount {
 	removePM(value) {
 		console.log("removePM");
 		this.currentPM = this.currentPM - value;
+	}
+	setPrimus(value){
+		this.primus = value;
 	}
 }

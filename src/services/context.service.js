@@ -8,7 +8,7 @@ const ConnectionService = {
 
     getSettings: () => {
         return new Promise((resolve, reject) => {
-            axios.get(ContextService.furyTouchSettingsUrl)
+            axios.get(ConnectionService.furyTouchSettingsUrl)
                 .then(response => resolve(new SettingsModel(response.data.buildVersion, response.data.appVersion)))
                 .catch(error => reject(error));
         })

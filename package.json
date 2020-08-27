@@ -3,10 +3,10 @@
 	"version": "0.1.0",
 	"description": "",
 	"main": "main.js",
+	"type": "commonjs",
 	"scripts": {
 		"start": "electron main.js",
 		"test:connect": "electron tests/connect/index.js",
-		"test:fullconnect": "electron tests/full-connect/index.js",
 		"test:move": "electron tests/move/index.js",
 		"test:fight": "electron tests/fight/index.js"
 	},
@@ -14,7 +14,6 @@
 	"license": "MIT",
 	"devDependencies": {
 		"axios": "^0.19.2",
-		"dotenv": "^8.2.0",
 		"electron-packager": "^15.0.0",
 		"electron-reload": "^1.5.0",
 		"electron-reloader": "^1.0.1"
@@ -24,10 +23,10 @@
 		"electron": "^9.2.0",
 		"engine.io": "^3.4.2",
 		"engine.io-client": "^3.4.3",
+		"es": "^0.7.3",
 		"load-json-file": "^6.2.0",
 		"moment": "^2.27.0",
 		"numeral": "^2.0.6",
-		"request": "^2.88.2",
-		"unique-names-generator": "^4.3.1"
+		"request": "^2.88.2"
 	}
 }

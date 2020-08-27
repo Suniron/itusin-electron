@@ -1,8 +1,3 @@
-require('dotenv').config();
-
-/* Electron */
-var ipc = require('electron').ipcRenderer;
-
 /* Libs */
 var Primus = require("../../src/libs/primus.js");
 var moment = require("moment");
@@ -19,14 +14,17 @@ var ApiIdRequestModel = require("../../src/models/api-id-request-model");
 var TokenRequestModel = require("../../src/models/token-request-model");
 var WebSocketRequestModel = require("../../src/models/web-socket-request-model");
 
-var quit = () => ipc.send('quit');
+import PrimusBotFunction from "../../src/services/primus.service.js";
+
+let newBot = new PrimusBotFunction();
+
 
 window.addEventListener("DOMContentLoaded", async (event) => {
 	console.log("Demande de connexion...");
 
 	await MapService.initialize();
 
-	const dofusAccount = new DofusAccount(process.env.DOFUS_USERNAME, process.env.DOFUS_PASSWORD);
+	const dofusAccount = new DofusAccount("nirhoriel", "s4EasX9E4");
 
 	const settingsModels = await ContextService.getSettings();
 	dofusAccount.appVersion = settingsModels.appVersion;
@@ -44,7 +42,7 @@ window.addEventListener("DOMContentLoaded", async (event) => {
 	dofusAccount.token = tokenResponseModel.token;
 
 	const webSocketRequestModel = new WebSocketRequestModel();
-	connectionToAuthServer(webSocketRequestModel, dofusAccount);
+	newBot.connectionToAuthServer(dofusAccount);
 });
 
 /* Primus + Dofus function */
@@ -66,37 +64,7 @@ const authorizedAuthMessage = [
 	"SelectedServerDataMessage"
 ];
 
-function connectionToAuthServer(webSocketRequestModel, dofusAccount) {
-	const socketURL = "https://proxyconnection.touch.dofus.com/primus/?STICKER=" + dofusAccount.sessionId;
-	primus = new Primus(socketURL);
-	primus.on("open", () => openLoginServer(primus, dofusAccount))
-	primus.on("data", payload => {
-		if (authorizedAuthMessage.includes(payload._messageType)) {
-			console.log(`[${moment().format("HH:mm:ss.SSS")}] SOCKET | \u001b[34mRCV\u001b[37m \u001b[30m| ${payload._messageType}`);
-			switch (payload._messageType) {
-				case "ConnectionFailedMessage": ConnectionFailedMessage(primus, payload);
-					break;
-				case "HelloConnectMessage": HelloConnectMessage(primus, payload, dofusAccount);
-					break;
-				case "ServersListMessage": ServersListMessage(primus, payload);
-					break;
-				case "SelectedServerRefusedMessage": SelectedServerRefusedMessage(primus, payload);
-					break;
-				case "SelectedServerDataMessage": SelectedServerDataMessage(primus, payload, dofusAccount);
-					break;
-			}
-		}
-	})
-	primus.on("reconnected", () => console.log("reconnected"))
-	primus.on("error", error => console.log(error))
-	primus.on("end", () => {})
-	primus.open();
-}
-
 /* Authentication */
-function openLoginServer(primus, dofusAccount) {
-	send(primus, "connecting", {language: "fr", server: "login", client: "android", appVersion: dofusAccount.appVersion, buildVersion: dofusAccount.buildVersion});
-}
 function ConnectionFailedMessage(primus, payload) {
 	console.log(`Echec de connexion ${payload.reason}`);
 }
@@ -133,7 +101,7 @@ const authorizedGameMessage = [
 
 function connectionToGameServer(webSocketRequestModel, dofusAccount) {
 	const socketURL = "https://proxyconnection.touch.dofus.com/primus/?STICKER=" + dofusAccount.sessionId;
-	primus = new Primus(socketURL);
+	var primus = new Primus(socketURL);
 	primus.on("open", () => openGameServer(primus, dofusAccount))
 	primus.on("data", payload => {
 		if (authorizedGameMessage.includes(payload._messageType)) {

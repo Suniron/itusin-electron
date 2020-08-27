@@ -1,8 +1,3 @@
-require('dotenv').config();
-
-/* Electron */
-var ipc = require('electron').ipcRenderer;
-
 /* Libs */
 var Primus = require("../../src/libs/primus.js");
 var moment = require("moment");
@@ -20,14 +15,12 @@ var ApiIdRequestModel = require("../../src/models/api-id-request-model");
 var TokenRequestModel = require("../../src/models/token-request-model");
 var WebSocketRequestModel = require("../../src/models/web-socket-request-model");
 
-var quit = () => ipc.send('quit');
-
 window.addEventListener("DOMContentLoaded", async (event) => {
 	console.log("Demande de connexion...");
 
 	await MapService.initialize();
 
-	const dofusAccount = new DofusAccount(process.env.DOFUS_USERNAME, process.env.DOFUS_PASSWORD);
+	const dofusAccount = new DofusAccount("nirhoriel", "s4EasX9E4");
 
 	const settingsModels = await ContextService.getSettings();
 	dofusAccount.appVersion = settingsModels.appVersion;
